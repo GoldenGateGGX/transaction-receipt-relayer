@@ -433,6 +433,7 @@ dependencies = [
 [[package]]
 name = "client"
 version = "0.4.1"
+source = "git+https://github.com/a16z/helios.git?tag=0.4.1#c057ab57e281e3a7c8a48a32a05e19ad90a922c3"
 dependencies = [
  "common",
  "config",
@@ -511,6 +512,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.4.1"
+source = "git+https://github.com/a16z/helios.git?tag=0.4.1#c057ab57e281e3a7c8a48a32a05e19ad90a922c3"
 dependencies = [
  "ethers",
  "eyre",
@@ -523,6 +525,7 @@ dependencies = [
 [[package]]
 name = "config"
 version = "0.4.1"
+source = "git+https://github.com/a16z/helios.git?tag=0.4.1#c057ab57e281e3a7c8a48a32a05e19ad90a922c3"
 dependencies = [
  "common",
  "ethers",
@@ -543,6 +546,7 @@ dependencies = [
 [[package]]
 name = "consensus"
 version = "0.4.1"
+source = "git+https://github.com/a16z/helios.git?tag=0.4.1#c057ab57e281e3a7c8a48a32a05e19ad90a922c3"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1344,6 +1348,7 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 [[package]]
 name = "execution"
 version = "0.4.1"
+source = "git+https://github.com/a16z/helios.git?tag=0.4.1#c057ab57e281e3a7c8a48a32a05e19ad90a922c3"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1804,6 +1809,7 @@ checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 [[package]]
 name = "helios"
 version = "0.4.1"
+source = "git+https://github.com/a16z/helios.git?tag=0.4.1#c057ab57e281e3a7c8a48a32a05e19ad90a922c3"
 dependencies = [
  "client",
  "common",

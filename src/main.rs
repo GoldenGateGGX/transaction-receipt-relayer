@@ -1,4 +1,11 @@
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    process::exit,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
 use ethers::types::Address;
 use eyre::Result;
@@ -18,6 +25,7 @@ async fn main() -> Result<()> {
     env_logger::init();
 
     let config = envy::from_env::<Config>()?;
+    let term = Arc::new(AtomicBool::new(false));
 
     let mut client: Client<FileDB> = ClientBuilder::new()
         .network(Network::MAINNET)
@@ -31,6 +39,8 @@ async fn main() -> Result<()> {
         "Built client on network \"{}\" with external checkpoint fallbacks",
         Network::MAINNET
     );
+
+    exit_if_term(term.clone());
 
     client.start().await?;
     log::info!("client started");
@@ -46,9 +56,15 @@ async fn main() -> Result<()> {
         .event("Transfer(address,address,uint256)");
 
     loop {
+        exit_if_term(term.clone());
         let logs = client.get_logs(&filter).await?;
         log::info!("logs: {:#?}", logs);
     }
+}
 
-    Ok(())
+fn exit_if_term(term: Arc<AtomicBool>) {
+    if term.load(Ordering::Relaxed) {
+        log::info!("caught SIGTERM");
+        exit(0);
+    }
 }
