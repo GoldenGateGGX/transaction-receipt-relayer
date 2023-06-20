@@ -10,6 +10,7 @@ use std::{
 use ethers::types::Address;
 use eyre::Result;
 use helios::{client::ClientBuilder, config::networks::Network, prelude::*};
+use rusqlite::Connection;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
@@ -18,6 +19,7 @@ struct Config {
     untrusted_rpc: String,
     smart_contract_address: String,
     block_number: Option<u64>,
+    db_path: Option<String>,
 }
 
 #[tokio::main]
@@ -26,6 +28,14 @@ async fn main() -> Result<()> {
 
     let config = envy::from_env::<Config>()?;
     let term = Arc::new(AtomicBool::new(false));
+
+    let conn = if let Some(path) = config.db_path {
+        Connection::open(path).unwrap()
+    } else {
+        Connection::open_in_memory().unwrap()
+    };
+    conn.execute("CREATE TABLE IF NOT EXISTS logs (log TEXT)", ())
+        .unwrap();
 
     let mut client: Client<FileDB> = ClientBuilder::new()
         .network(Network::MAINNET)
@@ -59,6 +69,11 @@ async fn main() -> Result<()> {
         exit_if_term(term.clone());
         let logs = client.get_logs(&filter).await?;
         log::info!("logs: {:#?}", logs);
+        for log in logs {
+            let json = serde_json::to_string(&log).unwrap();
+            conn.execute("INSERT INTO logs(log) values (?1)", (json,))
+                .unwrap();
+        }
     }
 }
 
