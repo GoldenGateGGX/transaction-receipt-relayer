@@ -7,7 +7,6 @@ use std::{
     },
 };
 
-// use anyhow::Result;
 use ethers::types::Address;
 use eyre::Result;
 use helios::{client::ClientBuilder, config::networks::Network, prelude::*};
