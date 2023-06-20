@@ -7,6 +7,7 @@ use std::{
     },
 };
 
+// use anyhow::Result;
 use ethers::types::Address;
 use eyre::Result;
 use helios::{client::ClientBuilder, config::networks::Network, prelude::*};
@@ -30,12 +31,11 @@ async fn main() -> Result<()> {
     let term = Arc::new(AtomicBool::new(false));
 
     let conn = if let Some(path) = config.db_path {
-        Connection::open(path).unwrap()
+        Connection::open(path)?
     } else {
-        Connection::open_in_memory().unwrap()
+        Connection::open_in_memory()?
     };
-    conn.execute("CREATE TABLE IF NOT EXISTS logs (log TEXT)", ())
-        .unwrap();
+    conn.execute("CREATE TABLE IF NOT EXISTS logs (log TEXT)", ())?;
 
     let mut client: Client<FileDB> = ClientBuilder::new()
         .network(Network::MAINNET)
@@ -62,7 +62,7 @@ async fn main() -> Result<()> {
                 .map(Into::into)
                 .unwrap_or(ethers::core::types::BlockNumber::Latest)..,
         )
-        .address(config.smart_contract_address.parse::<Address>().unwrap())
+        .address(config.smart_contract_address.parse::<Address>()?)
         .event("Transfer(address,address,uint256)");
 
     loop {
@@ -70,9 +70,8 @@ async fn main() -> Result<()> {
         let logs = client.get_logs(&filter).await?;
         log::info!("logs: {:#?}", logs);
         for log in logs {
-            let json = serde_json::to_string(&log).unwrap();
-            conn.execute("INSERT INTO logs(log) values (?1)", (json,))
-                .unwrap();
+            let json = serde_json::to_string(&log)?;
+            conn.execute("INSERT INTO logs(log) values (?1)", (json,))?;
         }
     }
 }
