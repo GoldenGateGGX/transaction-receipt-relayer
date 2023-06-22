@@ -20,6 +20,7 @@ struct Config {
     smart_contract_address: String,
     block_number: Option<u64>,
     db_path: Option<String>,
+    helios_home_path: Option<String>,
 }
 
 #[tokio::main]
@@ -41,7 +42,9 @@ async fn main() -> Result<()> {
         .consensus_rpc(&config.consensus_rpc)
         .execution_rpc(&config.untrusted_rpc)
         .load_external_fallback()
-        .data_dir(PathBuf::from("/tmp/helios"))
+        .data_dir(PathBuf::from(
+            config.helios_home_path.unwrap_or("/tmp/helios".to_string()),
+        ))
         .build()?;
 
     log::info!(
