@@ -14,6 +14,7 @@ CONSENSUS_RPC="https://www.lightclientdata.org" \
 UNTRUSTED_RPC="https://eth-mainnet.g.alchemy.com/v2/YOUR_TOKEN" \
 DB_PATH="/tmp/eth-light-client.sqlite" \
 HELIOS_HOME_PATH="/tmp/helios" \
+SERVER_PORT=5800 \
 RUST_LOG=debug \
 cargo run
 ```
