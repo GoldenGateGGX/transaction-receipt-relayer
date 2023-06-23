@@ -11,9 +11,15 @@ use ethers::types::Address;
 use eyre::Result;
 use helios::{client::ClientBuilder, config::networks::Network, prelude::*};
 use rusqlite::Connection;
+use salvo::prelude::*;
 use serde::Deserialize;
 
-#[derive(Deserialize, Debug)]
+#[handler]
+async fn hello() -> &'static str {
+    "Hello World"
+}
+
+#[derive(Deserialize, Debug, Clone)]
 struct Config {
     consensus_rpc: String,
     untrusted_rpc: String,
@@ -21,6 +27,7 @@ struct Config {
     block_number: Option<u64>,
     db_path: Option<String>,
     helios_home_path: Option<String>,
+    server_port: Option<u64>,
 }
 
 #[tokio::main]
@@ -30,13 +37,37 @@ async fn main() -> Result<()> {
     let config = envy::from_env::<Config>()?;
     let term = Arc::new(AtomicBool::new(false));
 
-    let conn = if let Some(path) = config.db_path {
+    let conn = if let Some(path) = config.db_path.clone() {
         Connection::open(path)?
     } else {
         Connection::open_in_memory()?
     };
     conn.execute("CREATE TABLE IF NOT EXISTS logs (log TEXT)", ())?;
 
+    tokio::select! {
+        _ = start_server(config.clone()) => {
+            log::info!("server was stopped")
+        }
+        _ = start_client(config.clone(), conn, term.clone()) => {
+            log::info!("client was stopped")
+        }
+    }
+
+    Ok(())
+}
+
+async fn start_server(config: Config) -> Result<()> {
+    let host_and_port = format!("127.0.0.1:{}", config.server_port.unwrap_or(5800));
+    log::info!("server is going to listen {}", host_and_port);
+
+    let router = Router::new().get(hello);
+    let acceptor = TcpListener::new(host_and_port).bind().await;
+    Server::new(acceptor).serve(router).await;
+
+    Ok(())
+}
+
+async fn start_client(config: Config, conn: Connection, term: Arc<AtomicBool>) -> Result<()> {
     let mut client: Client<FileDB> = ClientBuilder::new()
         .network(Network::MAINNET)
         .consensus_rpc(&config.consensus_rpc)
