@@ -18,6 +18,7 @@ async fn main() -> Result<()> {
 
     let config = envy::from_env::<Config>()?;
     let term = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&term))?;
 
     let db = DB::new(&config)?;
     db.create_table()?;
@@ -26,7 +27,7 @@ async fn main() -> Result<()> {
         _ = start_server(config.clone()) => {
             log::info!("server was stopped")
         }
-        _ = start_client(config.clone(), db, term.clone()) => {
+        _ = start_client(config, db, term) => {
             log::info!("client was stopped")
         }
     }
