@@ -24,4 +24,6 @@ RUN apt-get update --yes && \
 
 COPY --from=builder $HOME/target/release/eth-light-client ./target/release/eth-light-client
 
+EXPOSE 5800
+
 ENTRYPOINT [ "/usr/src/app/target/release/eth-light-client" ]
