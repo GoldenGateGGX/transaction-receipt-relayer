@@ -4,7 +4,7 @@ use rusqlite::Connection;
 use crate::config::Config;
 
 pub struct DB {
-    conn: Connection
+    conn: Connection,
 }
 
 impl DB {
@@ -19,10 +19,14 @@ impl DB {
     }
 
     pub fn create_table(&self) -> Result<usize> {
-        Ok(self.conn.execute("CREATE TABLE IF NOT EXISTS logs (log TEXT)", ())?)
+        Ok(self
+            .conn
+            .execute("CREATE TABLE IF NOT EXISTS logs (log TEXT)", ())?)
     }
 
     pub fn insert_logs(&self, log: &str) -> Result<usize> {
-        Ok(self.conn.execute("INSERT INTO logs(log) values (?1)", (log,))?)
+        Ok(self
+            .conn
+            .execute("INSERT INTO logs(log) values (?1)", (log,))?)
     }
 }

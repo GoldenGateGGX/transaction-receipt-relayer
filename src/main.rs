@@ -1,7 +1,4 @@
-use std::sync::{
-    atomic::AtomicBool,
-    Arc,
-};
+use std::sync::{atomic::AtomicBool, Arc};
 
 use eyre::Result;
 
@@ -36,4 +33,3 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
-

@@ -8,8 +8,8 @@ use std::{
 };
 
 use ethers::types::Address;
-use helios::{client::ClientBuilder, config::networks::Network, prelude::*};
 use eyre::Result;
+use helios::{client::ClientBuilder, config::networks::Network, prelude::*};
 
 use crate::config::Config;
 use crate::db::DB;
