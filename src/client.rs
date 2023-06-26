@@ -10,12 +10,11 @@ use std::{
 use ethers::types::Address;
 use helios::{client::ClientBuilder, config::networks::Network, prelude::*};
 use eyre::Result;
-use rusqlite::Connection;
 
 use crate::config::Config;
-use crate::db::insert_logs;
+use crate::db::DB;
 
-pub async fn start_client(config: Config, conn: Connection, term: Arc<AtomicBool>) -> Result<()> {
+pub async fn start_client(config: Config, db: DB, term: Arc<AtomicBool>) -> Result<()> {
     let mut client: Client<FileDB> = ClientBuilder::new()
         .network(Network::MAINNET)
         .consensus_rpc(&config.consensus_rpc)
@@ -52,7 +51,7 @@ pub async fn start_client(config: Config, conn: Connection, term: Arc<AtomicBool
         log::info!("logs: {:#?}", logs);
         for log in logs {
             let json = serde_json::to_string(&log)?;
-            insert_logs(&conn, &json)?;
+            db.insert_logs(&json)?;
         }
     }
 }
