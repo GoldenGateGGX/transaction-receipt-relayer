@@ -1,8 +1,6 @@
-use std::hash::Hash;
-
 use blake2::{Blake2s256, Digest};
 use ethers::types::H256;
-use merkle_cbt::merkle_tree::{CBMT, Merge};
+use merkle_cbt::merkle_tree::{Merge, CBMT};
 
 struct MergeH256 {}
 
@@ -22,7 +20,7 @@ impl Merge for MergeH256 {
 }
 
 #[allow(non_camel_case_types)]
-type CBMT_H256 = CBMT<H256, MergeH256>; 
+type CBMT_H256 = CBMT<H256, MergeH256>;
 
 pub fn verify(hashes: &[H256], indices: &[u32], proof_leaves: &[H256]) -> bool {
     let root = CBMT_H256::build_merkle_root(hashes);
