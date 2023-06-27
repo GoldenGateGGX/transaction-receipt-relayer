@@ -5,6 +5,7 @@ use eyre::Result;
 mod client;
 mod config;
 mod db;
+mod merkle;
 mod server;
 
 use client::start_client;
@@ -24,11 +25,11 @@ async fn main() -> Result<()> {
     db.create_table()?;
 
     tokio::select! {
-        _ = start_server(config.clone()) => {
-            log::info!("server was stopped")
+        res = start_server(config.clone()) => {
+            log::info!("server was stopped, reason: {:?}", res)
         }
-        _ = start_client(config, db, term) => {
-            log::info!("client was stopped")
+        res = start_client(config, db, term) => {
+            log::info!("client was stopped, reason: {:?}", res)
         }
     }
 
