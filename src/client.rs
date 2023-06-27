@@ -50,8 +50,12 @@ pub async fn start_client(config: Config, db: DB, term: Arc<AtomicBool>) -> Resu
         let logs = client.get_logs(&filter).await?;
         log::info!("logs: {:#?}", logs);
         for log in logs {
-            let json = serde_json::to_string(&log)?;
-            db.insert_logs(&json)?;
+            if let Some(block_number) = log.block_number {
+                if let Some(log_index) = log.log_index {
+                    let json = serde_json::to_string(&log)?;
+                    db.insert_logs(block_number.low_u64(), log_index.low_u64(), &json)?;
+                }
+            }
         }
     }
 }
