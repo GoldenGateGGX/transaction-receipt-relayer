@@ -27,9 +27,8 @@ pub async fn start_server(config: Config, db: DB) -> Result<()> {
     log::info!("server is going to listen {}", host_and_port);
 
     let router = Router::with_path("/api/v1")
-        .hoop(affix::inject(db))
-        .get(hello)
-        .get(root);
+        .push(Router::with_path("hello").get(hello))
+        .push(Router::with_path("root").hoop(affix::inject(db)).get(root));
     let acceptor = TcpListener::new(host_and_port).bind().await;
     Server::new(acceptor).serve(router).await;
 
