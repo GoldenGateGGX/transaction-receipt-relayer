@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
     db.create_table()?;
 
     tokio::select! {
-        res = start_server(config.clone()) => {
+        res = start_server(config.clone(), db.clone()) => {
             log::info!("server was stopped, reason: {:?}", res)
         }
         res = start_client(config, db, term) => {
