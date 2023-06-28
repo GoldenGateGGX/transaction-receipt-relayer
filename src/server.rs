@@ -1,5 +1,3 @@
-use std::convert::identity;
-
 use ethers::abi::AbiEncode;
 use eyre::Result;
 use salvo::prelude::*;
@@ -17,7 +15,7 @@ async fn hello() -> &'static str {
 async fn root(dep: &mut Depot) -> String {
     let db = dep.obtain::<DB>().expect("get DB");
     let logs = db.select_logs().expect("get logs");
-    let hashes = logs.iter().map(|log| log.transaction_hash).filter_map(identity).collect::<Vec<_>>();
+    let hashes = logs.iter().flat_map(|log| log.transaction_hash).collect::<Vec<_>>();
     merkle::root(&hashes).encode_hex()
 }
 

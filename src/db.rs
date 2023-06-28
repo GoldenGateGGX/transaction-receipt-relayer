@@ -42,14 +42,9 @@ impl DB {
         let conn = self.conn.lock().expect("acquire mutex");
         let mut stmt = conn.prepare("SELECT log FROM logs ORDER BY block_number, log_index")?;
         let raw_logs_iter = stmt.query_map([], |row| {
-            Ok(row.get::<_, String>(0)?)
+            row.get::<_, String>(0)
         })?;
-        let mut logs = vec![];
-        for raw_log in raw_logs_iter {
-            if let Ok(raw_log) = raw_log {
-                logs.push(serde_json::from_str(&raw_log)?)
-            }
-        }
-        Ok(logs)
+
+        Ok(raw_logs_iter.flatten().flat_map(|raw_log| serde_json::from_str(&raw_log)).collect())
     }
 }
