@@ -19,7 +19,9 @@ impl DB {
             Connection::open_in_memory()?
         };
 
-        Ok(DB { conn: Arc::new(Mutex::new(conn)) })
+        Ok(DB {
+            conn: Arc::new(Mutex::new(conn)),
+        })
     }
 
     pub fn create_table(&self) -> Result<usize> {
@@ -41,10 +43,11 @@ impl DB {
     pub fn select_logs(&self) -> Result<Vec<Log>> {
         let conn = self.conn.lock().expect("acquire mutex");
         let mut stmt = conn.prepare("SELECT log FROM logs ORDER BY block_number, log_index")?;
-        let raw_logs_iter = stmt.query_map([], |row| {
-            row.get::<_, String>(0)
-        })?;
+        let raw_logs_iter = stmt.query_map([], |row| row.get::<_, String>(0))?;
 
-        Ok(raw_logs_iter.flatten().flat_map(|raw_log| serde_json::from_str(&raw_log)).collect())
+        Ok(raw_logs_iter
+            .flatten()
+            .flat_map(|raw_log| serde_json::from_str(&raw_log))
+            .collect())
     }
 }
