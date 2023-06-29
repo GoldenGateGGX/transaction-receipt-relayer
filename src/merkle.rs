@@ -27,7 +27,6 @@ pub fn root(hashes: &[H256]) -> H256 {
     CBMT_H256::build_merkle_root(hashes)
 }
 
-#[allow(dead_code)]
 pub fn verify(hashes: &[H256], indices: &[u32], proof_leaves: &[H256]) -> Result<bool> {
     let root = CBMT_H256::build_merkle_root(hashes);
     let proof = CBMT_H256::build_merkle_proof(hashes, indices)
