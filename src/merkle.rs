@@ -32,3 +32,51 @@ pub fn verify(hashes: &[H256], indices: &[u32], proof_leaves: &[H256]) -> bool {
     let proof = CBMT_H256::build_merkle_proof(hashes, indices).unwrap();
     proof.verify(&root, proof_leaves)
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    use ethers::abi::AbiDecode;
+    use hex_literal::hex;
+
+    #[test]
+    fn root_of_emptry_tree_test() {
+        assert_eq!(root(&[]), H256::decode(hex!("0000000000000000000000000000000000000000000000000000000000000000")).unwrap())
+    }
+
+    #[test]
+    fn root_of_not_emptry_tree_test() {
+        let hashes = [
+            H256::decode(hex!("0000000000000000000000000000000000000000000000000000000000000001")).unwrap(),
+            H256::decode(hex!("0000000000000000000000000000000000000000000000000000000000000002")).unwrap(),
+            H256::decode(hex!("0000000000000000000000000000000000000000000000000000000000000003")).unwrap(),
+        ];
+        assert_eq!(
+            root(&hashes),
+            H256::decode(hex!("c589709931c1a867f903dec1c25821e3893ce05c621fbc51fb568efafde841ab")).unwrap()
+        )
+    }
+
+    #[test]
+    fn verify_test() {
+        let hashes = [
+            H256::decode(hex!("0000000000000000000000000000000000000000000000000000000000000001")).unwrap(),
+            H256::decode(hex!("0000000000000000000000000000000000000000000000000000000000000002")).unwrap(),
+            H256::decode(hex!("0000000000000000000000000000000000000000000000000000000000000003")).unwrap(),
+            H256::decode(hex!("0000000000000000000000000000000000000000000000000000000000000004")).unwrap(),
+            H256::decode(hex!("0000000000000000000000000000000000000000000000000000000000000005")).unwrap(),
+        ];
+        let indices = [3u32, 4];
+
+        let proof_valid_hashes = [hashes[3], hashes[4]];
+        assert_eq!(verify(&hashes, &indices, &proof_valid_hashes), true);
+
+        let proof_invalid_hashes = [
+            H256::decode(hex!("0000000000000000000000000000000000000000000000000000000000000006")).unwrap(),
+            H256::decode(hex!("0000000000000000000000000000000000000000000000000000000000000007")).unwrap(),
+        ];
+        assert_eq!(verify(&hashes, &indices, &proof_invalid_hashes), false);
+    }
+}
