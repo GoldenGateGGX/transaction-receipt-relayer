@@ -1,5 +1,6 @@
 use blake2::{Blake2s256, Digest};
 use ethers::types::H256;
+use eyre::{Report, Result};
 use merkle_cbt::merkle_tree::{Merge, CBMT};
 
 struct MergeH256 {}
@@ -27,10 +28,10 @@ pub fn root(hashes: &[H256]) -> H256 {
 }
 
 #[allow(dead_code)]
-pub fn verify(hashes: &[H256], indices: &[u32], proof_leaves: &[H256]) -> bool {
+pub fn verify(hashes: &[H256], indices: &[u32], proof_leaves: &[H256]) -> Result<bool> {
     let root = CBMT_H256::build_merkle_root(hashes);
-    let proof = CBMT_H256::build_merkle_proof(hashes, indices).unwrap();
-    proof.verify(&root, proof_leaves)
+    let proof = CBMT_H256::build_merkle_proof(hashes, indices).ok_or(Report::msg("Could not build proof"))?;
+    Ok(proof.verify(&root, proof_leaves))
 }
 
 #[cfg(test)]
