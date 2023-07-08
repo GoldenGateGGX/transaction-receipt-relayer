@@ -24,14 +24,19 @@ async fn main() -> Result<()> {
     let db = DB::new(&config)?;
     db.create_table()?;
 
-    tokio::select! {
-        res = start_server(config.clone(), db.clone()) => {
-            log::info!("server was stopped, reason: {:?}", res)
-        }
-        res = start_client(config, db, term) => {
-            log::info!("client was stopped, reason: {:?}", res)
-        }
-    }
+    let clone_db = db.clone();
+    let clone_config = config.clone();
+    tokio::spawn(async move {
+        let res = start_server(clone_config, clone_db).await;
+        log::info!("server was stopped, reason: {:?}", res);
+    });
+
+    tokio::spawn(async move {
+        let res = start_client(config, db.clone(), term).await;
+        log::info!("client was stopped, reason: {:?}", res);
+    })
+    .await
+    .expect("stop client successfully");
 
     Ok(())
 }
