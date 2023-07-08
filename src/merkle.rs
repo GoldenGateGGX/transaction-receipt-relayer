@@ -105,10 +105,7 @@ mod tests {
         let indices = [3u32, 4];
 
         let proof_valid_hashes = [hashes[3], hashes[4]];
-        assert_eq!(
-            verify(&hashes, &indices, &proof_valid_hashes).unwrap(),
-            true
-        );
+        assert!(verify(&hashes, &indices, &proof_valid_hashes).unwrap());
 
         let proof_invalid_hashes = [
             H256::decode(hex!(
@@ -120,9 +117,6 @@ mod tests {
             ))
             .unwrap(),
         ];
-        assert_eq!(
-            verify(&hashes, &indices, &proof_invalid_hashes).unwrap(),
-            false
-        );
+        assert!(!verify(&hashes, &indices, &proof_invalid_hashes).unwrap());
     }
 }
