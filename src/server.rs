@@ -15,8 +15,8 @@ struct VerifyReq {
 }
 
 #[handler]
-async fn hello() -> &'static str {
-    "Hello World"
+async fn status() -> &'static str {
+    "ok"
 }
 
 #[handler]
@@ -58,7 +58,7 @@ pub async fn start_server(config: Config, db: DB) -> Result<()> {
     log::info!("server is going to listen {}", host_and_port);
 
     let router = Router::with_path("/api/v1")
-        .push(Router::with_path("hello").get(hello))
+        .push(Router::with_path("status").get(status))
         .push(
             Router::with_path("root")
                 .hoop(affix::inject(db.clone()))
