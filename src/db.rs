@@ -39,7 +39,7 @@ impl DB {
             (),
         )?;
         conn.execute(
-            "CREATE INDEX blocks_block_hash_idx ON blocks (block_hash);",
+            "CREATE INDEX IF NOT EXISTS blocks_block_hash_idx ON blocks (block_hash);",
             (),
         )?;
         Ok(conn.execute(
