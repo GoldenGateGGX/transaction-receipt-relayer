@@ -24,5 +24,6 @@ tokio = {version = "1.28.2", features = ["macros", "rt-multi-thread"]}
 [dev-dependencies]
 hex-literal = "0.4.1"
 
+# Temporary, until https://github.com/a16z/helios/pull/242 is merged.
 [patch."https://github.com/a16z/helios.git"]
-helios = { git = "https://github.com/andor0/helios.git", branch = "max-supported-logs-number-as-environ-variable" }
+helios = { git = "https://github.com/obsessed-cake/helios", branch = "bump-max-supported-logs-number" }
