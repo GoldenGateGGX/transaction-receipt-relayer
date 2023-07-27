@@ -16,7 +16,7 @@ impl Merge for MergeH256 {
             .cloned()
             .collect::<Vec<_>>();
 
-        H256::from_slice(Keccak256::digest(&left_and_right).as_slice())
+        H256::from_slice(Keccak256::digest(left_and_right).as_slice())
     }
 }
 

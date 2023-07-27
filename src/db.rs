@@ -52,6 +52,7 @@ impl DB {
         )?)
     }
 
+    #[allow(dead_code)]
     pub fn insert_block(&self, block_number: u64, block_hash: H256, block: &str) -> Result<usize> {
         let conn = self.conn.lock().expect("acquire mutex");
         Ok(conn.execute(
@@ -68,6 +69,7 @@ impl DB {
         )?)
     }
 
+    #[allow(dead_code)]
     pub fn select_block_by_block_hash(&self, block_hash: H256) -> Result<Option<ExecutionBlock>> {
         let conn = self.conn.lock().expect("acquire mutex");
         let mut stmt = conn.prepare("SELECT block FROM blocks WHERE block_hash = :block_hash")?;
@@ -84,6 +86,7 @@ impl DB {
             .cloned())
     }
 
+    #[allow(dead_code)]
     pub fn select_block_by_block_number(
         &self,
         block_number: u64,
