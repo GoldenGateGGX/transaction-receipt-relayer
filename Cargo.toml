@@ -1,5 +1,5 @@
 [package]
-name = "eth-light-client"
+name = "transaction-receipt-relayer"
 version = "0.1.0"
 edition = "2021"
 

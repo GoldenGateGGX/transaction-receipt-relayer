@@ -1142,27 +1142,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "eth-light-client"
-version = "0.1.0"
-dependencies = [
- "env_logger",
- "envy",
- "ethers",
- "eyre",
- "helios",
- "hex-literal",
- "log",
- "merkle-cbt",
- "rusqlite",
- "salvo",
- "serde",
- "serde_json",
- "sha3",
- "signal-hook",
- "tokio",
-]
-
-[[package]]
 name = "ethabi"
 version = "18.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4992,6 +4971,27 @@ checksum = "97d095ae15e245a057c8e8451bab9b3ee1e1f68e9ba2b4fbc18d0ac5237835f2"
 dependencies = [
  "pin-project",
  "tracing",
+]
+
+[[package]]
+name = "transaction-receipt-relayer"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "envy",
+ "ethers",
+ "eyre",
+ "helios",
+ "hex-literal",
+ "log",
+ "merkle-cbt",
+ "rusqlite",
+ "salvo",
+ "serde",
+ "serde_json",
+ "sha3",
+ "signal-hook",
+ "tokio",
 ]
 
 [[package]]

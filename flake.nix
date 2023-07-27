@@ -1,5 +1,5 @@
 {
-  description = "Build eth-light-client";
+  description = "Build transaction-receipt-relayer";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
@@ -96,14 +96,14 @@
 
         # Build the actual crate itself, reusing the dependency
         # artifacts from above.
-        eth-light-client = craneLib.buildPackage (commonArgs // {
+        transaction-receipt-relayer = craneLib.buildPackage (commonArgs // {
           inherit cargoArtifacts;
         });
       in
       {
         checks = {
           # Build the crate as part of `nix flake check` for convenience
-          inherit eth-light-client;
+          inherit transaction-receipt-relayer;
 
           # Run clippy (and deny all warnings) on the crate source,
           # again, resuing the dependency artifacts from above.
@@ -131,7 +131,7 @@
           };
 
           # Run tests with cargo-nextest
-          # Consider setting `doCheck = false` on `eth-light-client` if you do not want
+          # Consider setting `doCheck = false` on `transaction-receipt-relayer` if you do not want
           # the tests to run twice
           nextest = craneLib.cargoNextest (commonArgs // {
             inherit cargoArtifacts;
@@ -147,14 +147,14 @@
         };
 
         packages = {
-          default = eth-light-client;
-          eth-light-client-llvm-coverage = craneLibLLvmTools.cargoLlvmCov (commonArgs // {
+          default = transaction-receipt-relayer;
+          transaction-receipt-relayer-llvm-coverage = craneLibLLvmTools.cargoLlvmCov (commonArgs // {
             inherit cargoArtifacts;
           });
         };
 
         apps.default = flake-utils.lib.mkApp {
-          drv = eth-light-client;
+          drv = transaction-receipt-relayer;
         };
 
         devShells.default = pkgs.mkShell {
