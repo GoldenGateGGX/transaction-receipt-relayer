@@ -1,0 +1,49 @@
+name: transaction-receipt-relayer
+
+# The ref given is fully-formed, meaning that for branches the format is refs/heads/<branch_name>, for pull requests it is refs/pull/<pr_number>/merge, and for tags it is refs/tags/<tag_name>
+on:
+  push:
+    branches: [main]
+    tags: [release**]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [main]
+
+env:
+  NIX_VERSION: nix-2.13.2
+  NIXPKGS_CHANNEL: nixos-22.11
+  CACHIX_NAME: golden-gate-ggx
+  OCTOLYTICS_DIMENSION_REPOSITORY_ID: 590614152
+
+jobs:
+  build-lint-all:
+    if: github.event_name == 'pull_request'
+    ## Run only if a PR is made for the main branch
+    runs-on: buildjet-32vcpu-ubuntu-2204
+    steps:
+      - name: cachix-install-nix-action
+        uses: cachix/install-nix-action@4b933aa7ebcc94a6174cf1364864e957b4910265
+        with:
+          install_url: https://releases.nixos.org/nix/${{ env.NIX_VERSION }}/install
+          nix_path: nixpkgs=channel:${{ env.NIXPKGS_CHANNEL }}
+          extra_nix_config: |
+            sandbox = relaxed
+            narinfo-cache-negative-ttl = 0      
+            system-features = kvm
+            http2 = true
+      - name: cachix-cachix-action
+        uses: cachix/cachix-action@ea6f6e9b45e696e7d061ffdbec262b68272d07eb
+        with:
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+          name: ${{ env.CACHIX_NAME }}
+      - name: nix-channel-env
+        run: |  
+          nix-channel --add https://nixos.org/channels/${{ env.NIXPKGS_CHANNEL }} nixpkgs
+          nix-channel --update
+          nix profile install nixpkgs#git
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - run: nix build --log-lines 100 .#checks.x86_64-linux.fmt
+      - run: nix build --log-lines 100 .#checks.x86_64-linux.clippy
