@@ -1,5 +1,9 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    path::Path,
+    sync::{Arc, Mutex},
+};
 
+use crate::config::Config;
 use ethers::{
     abi::AbiEncode,
     types::{TransactionReceipt, H256},
@@ -7,27 +11,18 @@ use ethers::{
 use eyre::Result;
 use helios::prelude::ExecutionBlock;
 use rusqlite::Connection;
-
-use crate::config::Config;
-
 #[derive(Clone)]
 pub struct DB {
     conn: Arc<Mutex<Connection>>,
 }
-
 impl DB {
     pub fn new(config: &Config) -> Result<Self> {
-        let conn = if let Some(path) = config.db_path.clone() {
-            Connection::open(path)?
-        } else {
-            Connection::open_in_memory()?
-        };
+        let conn = Connection::open(Path::new(&config.database).join("db.sqlite"))?;
 
         Ok(DB {
             conn: Arc::new(Mutex::new(conn)),
         })
     }
-
     pub fn create_tables(&self) -> Result<usize> {
         let conn = self.conn.lock().expect("acquire mutex");
         conn.execute(
@@ -40,19 +35,18 @@ impl DB {
             (),
         )?;
         conn.execute(
-            "CREATE INDEX blocks_block_hash_idx ON blocks (block_hash);",
+            "CREATE INDEX IF NOT EXISTS blocks_block_hash_idx ON blocks (block_hash);",
             (),
         )?;
         Ok(conn.execute(
             "CREATE TABLE IF NOT EXISTS receipts (
 				block_hash TEXT NOT NULL,
 				receipts TEXT NOT NULL,
-				PRIMARY KEY (block_number)
+				PRIMARY KEY (block_hash)
 			)",
             (),
         )?)
     }
-
     pub fn insert_block(&self, block_number: u64, block_hash: H256, block: &str) -> Result<usize> {
         let conn = self.conn.lock().expect("acquire mutex");
         Ok(conn.execute(
@@ -60,7 +54,6 @@ impl DB {
             (block_number, block_hash.encode_hex(), block),
         )?)
     }
-
     pub fn insert_receipts(&self, block_hash: H256, receipts: &str) -> Result<usize> {
         let conn = self.conn.lock().expect("acquire mutex");
         Ok(conn.execute(
@@ -68,7 +61,6 @@ impl DB {
             (block_hash.encode_hex(), receipts),
         )?)
     }
-
     pub fn select_block_by_block_hash(&self, block_hash: H256) -> Result<Option<ExecutionBlock>> {
         let conn = self.conn.lock().expect("acquire mutex");
         let mut stmt = conn.prepare("SELECT block FROM blocks WHERE block_hash = :block_hash")?;
@@ -76,7 +68,6 @@ impl DB {
             .query_map(&[(":block_hash", &block_hash.encode_hex())], |row| {
                 row.get::<_, String>(0)
             })?;
-
         Ok(raw_blocks_iter
             .flatten()
             .flat_map(|raw_blocks| serde_json::from_str(&raw_blocks))
@@ -84,7 +75,6 @@ impl DB {
             .get(0)
             .cloned())
     }
-
     pub fn select_block_by_block_number(
         &self,
         block_number: u64,
@@ -95,7 +85,6 @@ impl DB {
         let raw_blocks_iter = stmt.query_map(&[(":block_number", &block_number)], |row| {
             row.get::<_, String>(0)
         })?;
-
         Ok(raw_blocks_iter
             .flatten()
             .flat_map(|raw_blocks| serde_json::from_str(&raw_blocks))
@@ -103,7 +92,6 @@ impl DB {
             .get(0)
             .cloned())
     }
-
     pub fn select_receipts_by_block_hash(
         &self,
         block_hash: H256,
@@ -115,7 +103,6 @@ impl DB {
             .query_map(&[(":block_hash", &block_hash.encode_hex())], |row| {
                 row.get::<_, String>(0)
             })?;
-
         Ok(raw_receipts_iter
             .flatten()
             .flat_map(|raw_receipts| serde_json::from_str(&raw_receipts))
