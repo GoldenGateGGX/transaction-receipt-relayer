@@ -104,6 +104,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56fc6cf8dc8c4158eed8649f9b8b0ea1518eb62b544fe9490d66fa0b349eafe9"
 
 [[package]]
+name = "alloy-rlp"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f938f00332d63a5b0ac687bd6f46d03884638948921d9f8b50c59563d421ae25"
+dependencies = [
+ "alloy-rlp-derive",
+ "arrayvec 0.7.3",
+ "bytes",
+ "smol_str",
+]
+
+[[package]]
+name = "alloy-rlp-derive"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9aa5bb468bc7c46e0c5074d418f575262ff79451242e5ac1380121ed4e23c4fd"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.18",
+]
+
+[[package]]
 name = "amcl"
 version = "0.3.0"
 source = "git+https://github.com/Snowfork/milagro_bls#7d1776edb42870b006430ece9741c15811e4c9e3"
@@ -2780,6 +2803,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "keccak-hash"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b286e6b663fb926e1eeb68528e69cb70ed46c6d65871a21b2215ae8154c6d3c"
+dependencies = [
+ "primitive-types 0.12.1",
+ "tiny-keccak 2.0.2",
+]
+
+[[package]]
 name = "keccak-hasher"
 version = "0.1.1"
 source = "git+https://github.com/openethereum/parity-ethereum?rev=55c90d4016505317034e3e98f699af07f5404b63#55c90d4016505317034e3e98f699af07f5404b63"
@@ -4536,6 +4569,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
 
 [[package]]
+name = "smol_str"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74212e6bbe9a4352329b2f68ba3130c15a3f26fe88ff22dbdc6cdd58fa85e99c"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "socket2"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5166,6 +5208,11 @@ checksum = "497961ef93d974e23eb6f433eb5fe1b7930b659f06d12dec6fc44a8f554c0bba"
 [[package]]
 name = "types"
 version = "0.1.0"
+dependencies = [
+ "alloy-rlp",
+ "bytes",
+ "keccak-hash",
+]
 
 [[package]]
 name = "uint"

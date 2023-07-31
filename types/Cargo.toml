@@ -6,3 +6,6 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
+alloy-rlp.workspace = true
+bytes.workspace = true
+keccak-hash.workspace = true

@@ -1,7 +1,33 @@
-type H256 = [u8; 32];
-type U256 = [u8; 32];
-type H160 = [u8; 20];
+use alloy_rlp::{Encodable, RlpEncodable};
+use bytes::BufMut;
+use keccak_hash::keccak;
 
+#[derive(Debug, RlpEncodable, PartialEq, Clone)]
+pub struct H256([u8; 32]);
+
+#[derive(Debug, RlpEncodable, PartialEq, Clone)]
+pub struct U256([u8; 32]);
+
+#[derive(Debug, RlpEncodable, PartialEq, Clone)]
+pub struct H160([u8; 20]);
+
+impl H256 {
+    fn hash<T>(x: T) -> Self
+    where
+        T: Encodable,
+    {
+        let mut rlp = Vec::new();
+        x.encode(&mut rlp);
+        Self(keccak(&rlp).into())
+    }
+}
+
+/// A trait for types that can be hashed to a `H256`.
+pub trait KeccakHashable {
+    fn keccak_hash(&self) -> H256;
+}
+
+// #[derive(Debug, RlpEncodable, RlpDecodable, PartialEq)]
 pub struct EventProof {
     /// Block corresponding to a [stored block hash][1] in Webb's `pallet-eth2-light-client`.
     /// The hash of this structure is computed using its [rlp][2] representation. In particular, this is the 12th field of `execution_payload`,
@@ -16,11 +42,15 @@ pub struct EventProof {
     /// [4]: https://github.com/paradigmxyz/reth/blob/15bb1c90b8e60dcaaaa1d2cbc82817d135192cbd/crates/rpc/rpc-types/src/eth/engine/payload.rs#L151-L178
     pub block: Block,
 
+    /// Hash of the block.
     pub block_hash: H256,
 
     /// A transaction receipt. Must contain an event we are configured to listen to emitted by a
-    /// configured smart contract.
+    /// configured smart contract address.
     pub transaction_receipt: TransactionReceipt,
+
+    /// Hash of the transaction receipt.
+    pub transaction_receipt_hash: H256,
 
     /// A Merkle proof that the transaction receipt has been included in the `receipt_root` field in
     /// the `block`.
@@ -28,12 +58,40 @@ pub struct EventProof {
 }
 
 /// Error type for validating `EventProofTransaction`s.
-pub enum ValidationError {}
+pub enum ValidationError {
+    IncorrectBodyHash { expected: H256, actual: H256 },
+    IncorrectReceiptHash { expected: H256, actual: H256 },
+    IncorrectReceiptRoot { expected: H256, actual: H256 },
+}
 
 impl EventProof {
     /// Check that the `EventProofTransaction` is valid.
     pub fn validate(&self) -> Result<(), ValidationError> {
-        unimplemented!()
+        if self.block_hash != H256::hash(&self.block) {
+            return Err(ValidationError::IncorrectBodyHash {
+                expected: self.block_hash.clone(),
+                actual: H256::hash(&self.block),
+            });
+        }
+        if self.transaction_receipt_hash != H256::hash(&self.transaction_receipt) {
+            return Err(ValidationError::IncorrectReceiptHash {
+                expected: self.transaction_receipt_hash.clone(),
+                actual: H256::hash(&self.transaction_receipt),
+            });
+        }
+        if self.block.receipts_root
+            != self
+                .merkle_proof_of_receipt
+                .merkle_root(&self.transaction_receipt)
+        {
+            return Err(ValidationError::IncorrectReceiptRoot {
+                expected: self.block.receipts_root.clone(),
+                actual: self
+                    .merkle_proof_of_receipt
+                    .merkle_root(&self.transaction_receipt),
+            });
+        }
+        Ok(())
     }
 }
 
@@ -42,6 +100,7 @@ impl EventProof {
 ///
 /// [1]: https://ethereum.org/en/developers/docs/blocks/#block-anatomy
 /// [2]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/header.rs#L40-L105
+#[derive(Debug, PartialEq)]
 pub struct Block {
     /// The Keccak 256-bit hash of the parent
     /// block's header, in its entirety; formally Hp.
@@ -106,11 +165,19 @@ pub struct Block {
     pub extra_data: Vec<u8>,
 }
 
+impl Encodable for Block {
+    fn encode(&self, _out: &mut dyn BufMut) {
+        unimplemented!()
+    }
+}
+
 /// The receipt structure containing logs from smart contracts we are listening to; adapted from
 /// [`reth_primitives::ReceiptWithBloom`][1].
 ///
 /// [1]: https://ethereum.org/en/developers/docs/blocks/#block-anatomy
 /// [2]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/receipt.rs#L57-L62
+
+#[derive(Debug, RlpEncodable, PartialEq)]
 pub struct TransactionReceipt {
     /// Bloom filter build from logs.
     pub bloom: Vec<u8>,
@@ -121,7 +188,7 @@ pub struct TransactionReceipt {
 /// Transaction Type enum; adapted from [`reth_primitives::TxType`][1].
 ///
 /// [1]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/transaction/tx_type.rs#L22-L32
-#[derive(Default)]
+#[derive(Default, Debug, PartialEq)]
 pub enum TxType {
     /// Legacy transaction pre EIP-2929
     #[default]
@@ -134,10 +201,17 @@ pub enum TxType {
     EIP4844 = 3_isize,
 }
 
+impl Encodable for TxType {
+    fn encode(&self, _out: &mut dyn BufMut) {
+        unimplemented!()
+    }
+}
+
 /// The receipt structure containing logs from smart contracts we are listening to; adapted from
 /// [`reth_primitives::Receipt`][1].
 ///
 /// [1]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/receipt.rs#L14-L31
+#[derive(Debug, RlpEncodable, PartialEq)]
 pub struct Receipt {
     /// Receipt type.
     pub tx_type: TxType,
@@ -151,6 +225,7 @@ pub struct Receipt {
     pub logs: Vec<Log>,
 }
 
+#[derive(Debug, RlpEncodable, PartialEq)]
 pub struct Log {
     /// Contract that emitted this log.
     pub address: H160,
@@ -170,6 +245,7 @@ pub enum ReceiptMerkleProofNode {
         prefix: Vec<u8>,
     },
     BranchNode {
+        /// Nibble representing which branch of the node is taken.
         index: u8,
         branches: Box<[Option<Vec<u8>>; 16]>,
     },
