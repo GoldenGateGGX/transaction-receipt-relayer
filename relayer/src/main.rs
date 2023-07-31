@@ -1,6 +1,5 @@
-use std::sync::{atomic::AtomicBool, Arc};
-
 use eyre::Result;
+use std::sync::{atomic::AtomicBool, Arc};
 use tokio::fs;
 
 mod client;

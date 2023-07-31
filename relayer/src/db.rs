@@ -3,6 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use crate::config::Config;
 use ethers::{
     abi::AbiEncode,
     types::{TransactionReceipt, H256},
@@ -10,8 +11,6 @@ use ethers::{
 use eyre::Result;
 use helios::prelude::ExecutionBlock;
 use rusqlite::Connection;
-
-use crate::config::Config;
 
 #[derive(Clone)]
 pub struct DB {
@@ -26,7 +25,6 @@ impl DB {
             conn: Arc::new(Mutex::new(conn)),
         })
     }
-
     pub fn create_tables(&self) -> Result<usize> {
         let conn = self.conn.lock().expect("acquire mutex");
         conn.execute(
@@ -60,7 +58,6 @@ impl DB {
             (block_number, block_hash.encode_hex(), block),
         )?)
     }
-
     pub fn insert_receipts(&self, block_hash: H256, receipts: &str) -> Result<usize> {
         let conn = self.conn.lock().expect("acquire mutex");
         Ok(conn.execute(
@@ -77,7 +74,6 @@ impl DB {
             .query_map(&[(":block_hash", &block_hash.encode_hex())], |row| {
                 row.get::<_, String>(0)
             })?;
-
         Ok(raw_blocks_iter
             .flatten()
             .flat_map(|raw_blocks| serde_json::from_str(&raw_blocks))
@@ -97,7 +93,6 @@ impl DB {
         let raw_blocks_iter = stmt.query_map(&[(":block_number", &block_number)], |row| {
             row.get::<_, String>(0)
         })?;
-
         Ok(raw_blocks_iter
             .flatten()
             .flat_map(|raw_blocks| serde_json::from_str(&raw_blocks))
@@ -117,7 +112,6 @@ impl DB {
             .query_map(&[(":block_hash", &block_hash.encode_hex())], |row| {
                 row.get::<_, String>(0)
             })?;
-
         Ok(raw_receipts_iter
             .flatten()
             .flat_map(|raw_receipts| serde_json::from_str(&raw_receipts))
