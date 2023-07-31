@@ -28,6 +28,8 @@ tokio = "1.28.2"
 hex = "0.4"
 hex-literal = "0.4.1"
 
+types = { path = "types" }
+
 [patch."https://github.com/a16z/helios.git"]
 helios = { git = "https://github.com/andor0/helios.git", branch = "max-supported-logs-number-as-environ-variable" }
 helios-client = { package = "client", git = "https://github.com/andor0/helios.git", branch = "max-supported-logs-number-as-environ-variable" }

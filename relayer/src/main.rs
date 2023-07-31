@@ -1,5 +1,7 @@
-use eyre::Result;
 use std::sync::{atomic::AtomicBool, Arc};
+
+use clap::Parser;
+use eyre::Result;
 use tokio::fs;
 
 mod client;
@@ -17,7 +19,7 @@ use server::start_server;
 async fn main() -> Result<()> {
     env_logger::init();
 
-    let config = envy::from_env::<Config>()?;
+    let config = Config::parse();
     let term = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&term))?;
 

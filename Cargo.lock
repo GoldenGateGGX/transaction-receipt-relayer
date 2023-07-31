@@ -1263,6 +1263,7 @@ dependencies = [
  "sha3",
  "signal-hook",
  "tokio",
+ "types",
 ]
 
 [[package]]
