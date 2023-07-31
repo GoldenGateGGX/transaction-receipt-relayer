@@ -24,7 +24,7 @@ pub async fn start_client(config: Config, db: DB, term: Arc<AtomicBool>) -> Resu
         .execution_rpc(&config.untrusted_rpc)
         .load_external_fallback()
         .data_dir(
-            vec![config.database, "helios".to_string()]
+            [config.database, "helios".to_string()]
                 .iter()
                 .collect::<PathBuf>(),
         )

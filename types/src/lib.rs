@@ -171,7 +171,7 @@ pub enum ReceiptMerkleProofNode {
     },
     BranchNode {
         index: u8,
-        branches: [Option<Vec<u8>>; 16],
+        branches: Box<[Option<Vec<u8>>; 16]>,
     },
 }
 
