@@ -40,7 +40,7 @@ impl DB {
             (),
         )?;
         conn.execute(
-            "CREATE INDEX blocks_block_hash_idx ON blocks (block_hash);",
+            "CREATE INDEX IF NOT EXISTS blocks_block_hash_idx ON blocks (block_hash);",
             (),
         )?;
         Ok(conn.execute(
@@ -50,6 +50,18 @@ impl DB {
 			)",
             (),
         )?)
+    }
+
+    pub fn select_latest_processed_block(&self) -> Result<Option<u64>> {
+        let conn = self.conn.lock().expect("acquire mutex");
+        let mut stmt = conn.prepare("SELECT block_height FROM latest_block")?;
+        let block_height_iter = stmt.query_map([], |row| row.get::<_, u64>(0))?;
+
+        Ok(block_height_iter
+            .flatten()
+            .collect::<Vec<_>>()
+            .get(0)
+            .cloned())
     }
 
     pub fn insert_block(

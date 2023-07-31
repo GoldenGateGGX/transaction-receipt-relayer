@@ -6,3 +6,5 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
+ethers.workspace = true
+rlp.workspace = true

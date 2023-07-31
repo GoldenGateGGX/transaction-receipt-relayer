@@ -25,6 +25,7 @@ signal-hook.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 hex.workspace = true
 types.workspace = true
+rlp.workspace = true
 
 [dev-dependencies]
 hex-literal.workspace = true
