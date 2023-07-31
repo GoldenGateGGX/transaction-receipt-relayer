@@ -104,10 +104,9 @@ pub struct TransactionReceipt {
 /// [1]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/transaction/tx_type.rs#L22-L32
 #[derive(Default, Debug, PartialEq)]
 pub enum TxType {
-    /// Legacy transaction pre EIP-2929
+    /// Block corresponding to a [stored block hash][1] in Webb's `pallet-eth2-light-client`.
+    /// The hash of this structure is computed using its [rlp][2] representation. In particular, this is the 12th field of `exec
     #[default]
-    Legacy = 0_isize,
-    /// AccessList transaction
     EIP2930 = 1_isize,
     /// Transaction with Priority fee
     EIP1559 = 2_isize,
