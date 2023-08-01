@@ -262,4 +262,36 @@ mod tests {
         };
         assert_eq!(H256::hash(header), expected_hash);
     }
+
+    // curl https://mainnet.infura.io/v3/{YOUR_API_KEY}   -X POST   -H "Content-Type: application/json"
+    //      -d '{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x10FE785",false],"id":1}
+    // https://etherscan.io/block/17819525
+    #[test]
+    fn test_block_17819525() {
+        let expected_hash = H256(hex!(
+            "ef6f592b69bceca6bf801f0b32a0173007e4e6e9f375c49841c18eacbb5c37ff"
+        ));
+        let header = BlockHeader {
+            parent_hash: H256(hex!("57788a1d18e41704faafe17649d735efa2654e648707246ae78071654db64363")),
+            ommers_hash: H256(hex!("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
+            beneficiary: H160(hex!("95222290dd7278aa3ddd389cc1e1d165cc4bafe5")),
+            state_root: H256(hex!("3befce142543d32f9a4aa209d76361a9f14e307c9f3b347a01c3c9cf194f8dcc")),
+            transactions_root: H256(hex!("921355a0945f1861fbd6581db1df0b4f59a7937aef800db27b2ceb09a2e63e6f")),
+            receipts_root: H256(hex!("65c4e84c69c03bf12c42643cf15b55775a4c62bd7d728a3b641f66673b3b51a2")),
+            logs_bloom: Bloom(hex!("a36710b1555713853e7c2974af0c5281a2e00270c6bd6020924118016073a543d1609be18c0e068cd1051f2a8ac5319cde07442f8a83ea135336b6b2c82c22a4ec28c49e48440879c8a7419f732832a28c41248527c48936f82006e790731b41da0174ac0219945b0428d1b401b03c15b1db4242a9d9249696745e1711de3100c88783d206dc1922025446f661262c1e049654d3c53924486ead407804de343aa2ac2ce4de8034502e1954c18083948b0d3a44ea9a2c12ac29f198671a1b425d31360812580ecc538301b3850d3ef60026f4aa43342aab191828694a0891f57866302f08d4672408024786b47c22c542a47cf170af40c8412003a80202c97663")),
+            difficulty: U256::from(0x0),
+            number: 0x10fe785,
+            gas_limit: 0x1c9c380,
+            gas_used: 0xec8823,
+            timestamp: 0x64c8dcf7,
+            extra_data: Bytes::from_static(&hex!("6265617665726275696c642e6f7267")),
+            mix_hash: H256(hex!("b3941446d0aa46c87a1117565c922e00e4f4111c602a2583d9a7d25521b0f932")),
+            nonce: 0,
+            base_fee_per_gas: Some(0x65a3cb387),
+            withdrawals_root: Some(H256(hex!("5d908bbdb4303d3be4ec0565005a0bc4ca3ad820143fba16351f1d7fb4dfbfe9"))),
+            blob_gas_used: None,
+            excess_blob_gas: None,
+        };
+        assert_eq!(H256::hash(header), expected_hash);
+    }
 }
