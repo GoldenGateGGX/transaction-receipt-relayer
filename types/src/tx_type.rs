@@ -25,19 +25,19 @@ pub enum TxType {
 impl Encodable for TxType {
     fn encode(&self, out: &mut dyn BufMut) {
         match self {
-            TxType::Legacy => LEGACY_TX_TYPE_ID.to_le_bytes().encode(out),
-            TxType::EIP2930 => EIP2930_TX_TYPE_ID.to_le_bytes().encode(out),
-            TxType::EIP1559 => EIP1559_TX_TYPE_ID.to_le_bytes().encode(out),
-            TxType::EIP4844 => EIP4844_TX_TYPE_ID.to_le_bytes().encode(out),
+            TxType::Legacy => LEGACY_TX_TYPE_ID.to_be_bytes().encode(out),
+            TxType::EIP2930 => EIP2930_TX_TYPE_ID.to_be_bytes().encode(out),
+            TxType::EIP1559 => EIP1559_TX_TYPE_ID.to_be_bytes().encode(out),
+            TxType::EIP4844 => EIP4844_TX_TYPE_ID.to_be_bytes().encode(out),
         }
     }
 
     fn length(&self) -> usize {
         match self {
-            TxType::Legacy => LEGACY_TX_TYPE_ID.to_le_bytes().len(),
-            TxType::EIP2930 => EIP2930_TX_TYPE_ID.to_le_bytes().len(),
-            TxType::EIP1559 => EIP1559_TX_TYPE_ID.to_le_bytes().len(),
-            TxType::EIP4844 => EIP4844_TX_TYPE_ID.to_le_bytes().len(),
+            TxType::Legacy => LEGACY_TX_TYPE_ID.to_be_bytes().len(),
+            TxType::EIP2930 => EIP2930_TX_TYPE_ID.to_be_bytes().len(),
+            TxType::EIP1559 => EIP1559_TX_TYPE_ID.to_be_bytes().len(),
+            TxType::EIP4844 => EIP4844_TX_TYPE_ID.to_be_bytes().len(),
         }
     }
 }
