@@ -31,4 +31,13 @@ impl Encodable for TxType {
             TxType::EIP4844 => EIP4844_TX_TYPE_ID.to_le_bytes().encode(out),
         }
     }
+
+    fn length(&self) -> usize {
+        match self {
+            TxType::Legacy => LEGACY_TX_TYPE_ID.to_le_bytes().len(),
+            TxType::EIP2930 => EIP2930_TX_TYPE_ID.to_le_bytes().len(),
+            TxType::EIP1559 => EIP1559_TX_TYPE_ID.to_le_bytes().len(),
+            TxType::EIP4844 => EIP4844_TX_TYPE_ID.to_le_bytes().len(),
+        }
+    }
 }
