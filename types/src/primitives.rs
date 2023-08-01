@@ -1,14 +1,27 @@
-use alloy_rlp::{Encodable, RlpEncodable};
+use alloy_rlp::{Encodable, RlpEncodableWrapper};
 use keccak_hash::keccak;
 
-#[derive(Debug, RlpEncodable, PartialEq, Clone)]
+use crate::encode::Encoder;
+
+#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone)]
 pub struct H256(pub [u8; 32]);
 
-#[derive(Debug, RlpEncodable, PartialEq, Clone)]
+#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone)]
 pub struct H64(pub [u8; 8]);
 
-#[derive(Debug, RlpEncodable, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct U256(pub [u8; 32]);
+
+impl Encodable for U256 {
+    fn encode(&self, out: &mut dyn alloy_rlp::BufMut) {
+        // Throw away leading zeros
+        let mut start = 0;
+        while start < 32 && self.0[start] == 0 {
+            start += 1;
+        }
+        alloy_rlp::Encodable::encode(&self.0[start..], out);
+    }
+}
 
 impl From<u64> for U256 {
     fn from(x: u64) -> Self {
@@ -18,7 +31,7 @@ impl From<u64> for U256 {
     }
 }
 
-#[derive(Debug, RlpEncodable, PartialEq, Clone)]
+#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone)]
 pub struct H160(pub [u8; 20]);
 
 impl H256 {
