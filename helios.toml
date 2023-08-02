@@ -1,5 +1,5 @@
 [mainnet]
 consensus_rpc = "https://www.lightclientdata.org"
-execution_rpc = "https://mainnet.infura.io/v3/de6ae5eac4964a5dbe41126fa2f884ba"
+execution_rpc = "https://mainnet.infura.io/v3/{YOUR_API_KEY}"
 load_external_fallback = true
 data_dir = "./data/mainnet"
