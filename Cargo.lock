@@ -990,7 +990,7 @@ version = "0.1.0"
 [[package]]
 name = "client"
 version = "0.4.1"
-source = "git+https://github.com/andor0/helios.git?branch=max-supported-logs-number-as-environ-variable#7ef3fb7e4be5e78487c72cb8ecac87aead3a4a16"
+source = "git+https://github.com/obsessed-cake/helios.git?branch=bump-max-supported-logs-number#49295463d46aafeb068a24a97eea9322d6f58d4b"
 dependencies = [
  "common",
  "config 0.4.1",
@@ -1075,7 +1075,7 @@ checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 [[package]]
 name = "common"
 version = "0.4.1"
-source = "git+https://github.com/andor0/helios.git?branch=max-supported-logs-number-as-environ-variable#7ef3fb7e4be5e78487c72cb8ecac87aead3a4a16"
+source = "git+https://github.com/obsessed-cake/helios.git?branch=bump-max-supported-logs-number#49295463d46aafeb068a24a97eea9322d6f58d4b"
 dependencies = [
  "ethers",
  "eyre",
@@ -1102,7 +1102,7 @@ dependencies = [
 [[package]]
 name = "config"
 version = "0.4.1"
-source = "git+https://github.com/andor0/helios.git?branch=max-supported-logs-number-as-environ-variable#7ef3fb7e4be5e78487c72cb8ecac87aead3a4a16"
+source = "git+https://github.com/obsessed-cake/helios.git?branch=bump-max-supported-logs-number#49295463d46aafeb068a24a97eea9322d6f58d4b"
 dependencies = [
  "common",
  "ethers",
@@ -1138,7 +1138,7 @@ dependencies = [
 [[package]]
 name = "consensus"
 version = "0.4.1"
-source = "git+https://github.com/andor0/helios.git?branch=max-supported-logs-number-as-environ-variable#7ef3fb7e4be5e78487c72cb8ecac87aead3a4a16"
+source = "git+https://github.com/obsessed-cake/helios.git?branch=bump-max-supported-logs-number#49295463d46aafeb068a24a97eea9322d6f58d4b"
 dependencies = [
  "async-trait",
  "bytes 1.4.0",
@@ -2400,7 +2400,7 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 [[package]]
 name = "execution"
 version = "0.4.1"
-source = "git+https://github.com/andor0/helios.git?branch=max-supported-logs-number-as-environ-variable#7ef3fb7e4be5e78487c72cb8ecac87aead3a4a16"
+source = "git+https://github.com/obsessed-cake/helios.git?branch=bump-max-supported-logs-number#49295463d46aafeb068a24a97eea9322d6f58d4b"
 dependencies = [
  "async-trait",
  "bytes 1.4.0",
@@ -2412,7 +2412,6 @@ dependencies = [
  "hex",
  "hyper 0.14.27",
  "log",
- "once_cell",
  "openssl",
  "reqwest",
  "revm",
@@ -3154,7 +3153,7 @@ checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 [[package]]
 name = "helios"
 version = "0.4.1"
-source = "git+https://github.com/andor0/helios.git?branch=max-supported-logs-number-as-environ-variable#7ef3fb7e4be5e78487c72cb8ecac87aead3a4a16"
+source = "git+https://github.com/obsessed-cake/helios.git?branch=bump-max-supported-logs-number#49295463d46aafeb068a24a97eea9322d6f58d4b"
 dependencies = [
  "client 0.4.1",
  "common",
