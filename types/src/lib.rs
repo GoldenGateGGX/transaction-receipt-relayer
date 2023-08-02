@@ -1,6 +1,4 @@
-use alloy_rlp::{Encodable, RlpEncodable};
-use bytes::BufMut;
-use keccak_hash::keccak;
+use alloy_rlp::RlpEncodable;
 
 mod tx_type;
 pub use tx_type::TxType;
