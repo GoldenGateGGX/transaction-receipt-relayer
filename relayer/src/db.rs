@@ -97,6 +97,7 @@ impl DB {
         )?)
     }
 
+    #[allow(dead_code)]
     pub fn insert_receipts(&self, block_hash: H256, receipts: &str) -> Result<usize> {
         let conn = self.conn.lock().expect("acquire mutex");
         Ok(conn.execute(
