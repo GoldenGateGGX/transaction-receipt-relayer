@@ -5,7 +5,6 @@ use std::{
 
 use ethers::{abi::AbiDecode, abi::AbiEncode, types::TransactionReceipt};
 use eyre::Result;
-use helios::prelude::ExecutionBlock;
 use rusqlite::Connection;
 use types::{BlockHeader, H256};
 
@@ -107,9 +106,10 @@ impl DB {
     }
 
     #[allow(dead_code)]
-    pub fn select_block_by_block_hash(&self, block_hash: H256) -> Result<Option<ExecutionBlock>> {
+    pub fn select_block_by_block_hash(&self, block_hash: H256) -> Result<Option<BlockHeader>> {
         let conn = self.conn.lock().expect("acquire mutex");
-        let mut stmt = conn.prepare("SELECT block FROM blocks WHERE block_hash = :block_hash")?;
+        let mut stmt =
+            conn.prepare("SELECT block_header FROM blocks WHERE block_hash = :block_hash")?;
         let raw_blocks_iter = stmt
             .query_map(&[(":block_hash", &block_hash.0.encode_hex())], |row| {
                 row.get::<_, String>(0)
@@ -124,14 +124,11 @@ impl DB {
     }
 
     #[allow(dead_code)]
-    pub fn select_block_by_block_number(
-        &self,
-        block_number: u64,
-    ) -> Result<Option<ExecutionBlock>> {
+    pub fn select_block_by_block_number(&self, block_number: u64) -> Result<Option<BlockHeader>> {
         let conn = self.conn.lock().expect("acquire mutex");
         let mut stmt =
-            conn.prepare("SELECT block FROM blocks WHERE block_number = :block_number")?;
-        let raw_blocks_iter = stmt.query_map(&[(":block_number", &block_number)], |row| {
+            conn.prepare("SELECT block_header FROM blocks WHERE block_height = :block_height")?;
+        let raw_blocks_iter = stmt.query_map(&[(":block_height", &block_number)], |row| {
             row.get::<_, String>(0)
         })?;
 
