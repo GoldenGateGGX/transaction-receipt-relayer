@@ -10,6 +10,8 @@ pub use block_header::BlockHeader;
 mod bloom;
 pub use bloom::Bloom;
 
+pub(crate) mod encode;
+
 /// A trait for types that can be hashed to a `H256`.
 pub trait KeccakHashable {
     fn keccak_hash(&self) -> H256;

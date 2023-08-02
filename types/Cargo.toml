@@ -5,6 +5,9 @@ edition.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+[features]
+debug = []
+
 [dependencies]
 alloy-rlp.workspace = true
 bytes.workspace = true

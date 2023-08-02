@@ -1,6 +1,6 @@
 use alloy_rlp::{length_of_length, BufMut, Bytes, Encodable, EMPTY_LIST_CODE, EMPTY_STRING_CODE};
 
-use crate::{Bloom, H160, H256, H64, U256};
+use crate::{encode, Bloom, H160, H256, H64, U256};
 
 /// The block structure hashed to generate the `block_hash` field for Ethereum's
 /// [`execution_payload`][1]; adapted from [`reth_primitives::Header`][2].
@@ -126,84 +126,57 @@ impl BlockHeader {
     }
 }
 
-macro_rules! dbgg {
-    ($elem:expr) => {
-        let mut vec = vec![];
-        $elem.encode(&mut vec);
-        println!("{}: {:?}", stringify!($elem), vec);
-    };
-}
-
 impl Encodable for BlockHeader {
     fn encode(&self, out: &mut dyn BufMut) {
         let list_header = alloy_rlp::Header {
             list: true,
             payload_length: self.header_payload_length(),
         };
-        list_header.encode(out);
-        dbgg!(list_header);
-        self.parent_hash.encode(out);
-        dbgg!(self.parent_hash);
-        self.ommers_hash.encode(out);
-        dbgg!(self.ommers_hash);
-        self.beneficiary.encode(out);
-        dbgg!(self.beneficiary);
-        self.state_root.encode(out);
-        dbgg!(self.state_root);
-        self.transactions_root.encode(out);
-        dbgg!(self.transactions_root);
-        self.receipts_root.encode(out);
-        dbgg!(self.receipts_root);
-        self.logs_bloom.encode(out);
-        dbgg!(self.logs_bloom);
-        self.difficulty.encode(out);
-        dbgg!(self.difficulty);
-        U256::from(self.number).encode(out);
-        dbgg!(U256::from(self.number));
-        U256::from(self.gas_limit).encode(out);
-        dbgg!(U256::from(self.gas_limit));
-        U256::from(self.gas_used).encode(out);
-        dbgg!(U256::from(self.gas_used));
-        self.timestamp.encode(out);
-        dbgg!(self.timestamp);
-        self.extra_data.encode(out);
-        dbgg!(self.extra_data);
-        self.mix_hash.encode(out);
-        dbgg!(self.mix_hash);
-        H64(self.nonce.to_be_bytes()).encode(out);
-        dbgg!(H64(self.nonce.to_be_bytes()));
 
+        encode!(
+            out,
+            list_header,
+            self.parent_hash,
+            self.ommers_hash,
+            self.beneficiary,
+            self.state_root,
+            self.transactions_root,
+            self.receipts_root,
+            self.logs_bloom,
+            self.difficulty,
+            U256::from(self.number),
+            U256::from(self.gas_limit),
+            U256::from(self.gas_used),
+            self.timestamp,
+            self.extra_data,
+            self.mix_hash,
+            H64(self.nonce.to_be_bytes())
+        );
         // Encode base fee. Put empty string if base fee is missing,
         // but withdrawals root is present.
         if let Some(ref base_fee) = self.base_fee_per_gas {
-            U256::from(*base_fee).encode(out);
-            dbgg!(U256::from(*base_fee));
+            encode!(out, U256::from(*base_fee));
         } else if self.withdrawals_root.is_some()
             || self.blob_gas_used.is_some()
             || self.excess_blob_gas.is_some()
         {
-            out.put_u8(EMPTY_STRING_CODE);
-            dbgg!(EMPTY_STRING_CODE);
+            encode!(out, EMPTY_STRING_CODE);
         }
 
         // Encode withdrawals root. Put empty string if withdrawals root is missing,
         // but blob gas used is present.
         if let Some(ref root) = self.withdrawals_root {
-            root.encode(out);
-            dbgg!(root);
+            encode!(out, root);
         } else if self.blob_gas_used.is_some() || self.excess_blob_gas.is_some() {
-            out.put_u8(EMPTY_STRING_CODE);
-            dbgg!(EMPTY_STRING_CODE);
+            encode!(out, EMPTY_STRING_CODE);
         }
 
         // Encode blob gas used. Put empty string if blob gas used is missing,
         // but excess blob gas is present.
         if let Some(ref blob_gas_used) = self.blob_gas_used {
-            U256::from(*blob_gas_used).encode(out);
-            dbgg!(U256::from(*blob_gas_used));
+            encode!(out, U256::from(*blob_gas_used));
         } else if self.excess_blob_gas.is_some() {
-            out.put_u8(EMPTY_LIST_CODE);
-            dbgg!(EMPTY_LIST_CODE);
+            encode!(out, EMPTY_LIST_CODE);
         }
 
         // Encode excess blob gas. If new fields are added, the above pattern will need to be
@@ -214,8 +187,7 @@ impl Encodable for BlockHeader {
         //    post-London, so this is technically not valid. However, a tool like proptest would
         //    generate a block like this.
         if let Some(ref excess_blob_gas) = self.excess_blob_gas {
-            U256::from(*excess_blob_gas).encode(out);
-            dbgg!(U256::from(*excess_blob_gas));
+            encode!(out, U256::from(*excess_blob_gas));
         }
     }
 

@@ -1,8 +1,6 @@
 use alloy_rlp::{Encodable, RlpEncodableWrapper};
 use keccak_hash::keccak;
 
-use crate::encode::Encoder;
-
 #[derive(Debug, RlpEncodableWrapper, PartialEq, Clone)]
 pub struct H256(pub [u8; 32]);
 
