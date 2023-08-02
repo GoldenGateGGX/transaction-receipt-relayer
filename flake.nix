@@ -167,6 +167,7 @@
           nativeBuildInputs = with pkgs; [
             rust-toolchain
             sqlite
+            lldb
           ];
         };
       });

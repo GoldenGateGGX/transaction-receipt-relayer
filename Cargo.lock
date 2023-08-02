@@ -4438,6 +4438,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-big-array"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11fc7cc2c76d73e0f27ee52abbd64eec84d46f370c88371120433196934e4b7f"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_derive"
 version = "1.0.164"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5305,6 +5314,8 @@ dependencies = [
  "hex-literal",
  "keccak-hash",
  "proptest",
+ "serde",
+ "serde-big-array",
  "test-strategy",
 ]
 

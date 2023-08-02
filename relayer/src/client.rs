@@ -8,165 +8,231 @@ use std::{
     time::Duration,
 };
 
+use ethers::providers::Middleware;
+use ethers::{
+    providers::{Http, Provider},
+    types::Block,
+};
 use eyre::Result;
 use helios::{
-    client::ClientBuilder, config::networks::Network, config::Config as HeliosConfig,
-    types::BlockTag,
+    client::ClientBuilder,
+    config::Config as HeliosConfig,
+    types::{BlockTag, ExecutionBlock},
 };
-use helios_client::{database::FileDB, node::Node, Client};
-use tokio::{spawn, sync::RwLock};
-use types::{Bloom, H160, H256, U256};
+use helios_client::{database::FileDB, Client as HeliosClient};
+use types::{BlockHeader, Bloom, H160, H256, U256};
 
-use crate::{config::Config, db::DB};
+use crate::{
+    config::Config,
+    consts::BLOCK_AMOUNT_TO_STORE,
+    db::{BlockType, DB},
+};
 
-pub async fn start_client(config: Config, db: DB, term: Arc<AtomicBool>) -> Result<()> {
-    println!("{}", config.network);
-    let helios_config = prepare_config(&config);
-    let network = network(&config);
-    let mut client: Client<FileDB> = ClientBuilder::new()
-        .config(helios_config)
-        .data_dir(
-            vec![config.database, PathBuf::from("helios")]
-                .iter()
-                .collect(),
-        )
-        .build()?;
+pub struct Client {
+    client: HeliosClient<FileDB>,
+    block_rpc: Provider<Http>,
+    db: DB,
+    term: Arc<AtomicBool>,
+}
 
-    log::info!(target: "relayer::client",
-        "Built client on network \"{}\" with external checkpoint fallbacks",
-        &config.network
-    );
-    log::info!(target: "relayer::client","Start syncing blocks from the network");
+impl Client {
+    pub fn new(config: Config, db: DB, term: Arc<AtomicBool>) -> Result<Self> {
+        let helios_config = prepare_config(&config);
+        let block_rpc = Provider::<Http>::try_from(&helios_config.execution_rpc)?;
+        let client: HeliosClient<FileDB> = ClientBuilder::new()
+            .config(helios_config)
+            .data_dir(
+                vec![config.database, PathBuf::from("helios")]
+                    .iter()
+                    .collect(),
+            )
+            .build()?;
+        Ok(Client {
+            client,
+            block_rpc,
+            db,
+            term,
+        })
+    }
 
-    exit_if_term(term.clone());
-    client.start().await?;
+    pub async fn start(&mut self) -> Result<()> {
+        exit_if_term(self.term.clone());
+        self.client.start().await?;
+        log::info!(target: "relayer::client::start","client started");
 
-    log::info!(target: "relayer::client","client started");
+        // TODO: should recheck missed blocks on startup
+        self.finalization_loop().await?;
 
-    let mut latest_processed_block = if let Some(result) = db.select_latest_processed_block()? {
-        result
-    } else {
-        log::info!(target: "relayer::client","No processed blocks found in the database, probably first run. Starting from the latest block.");
-        latest_finalized_block_number(&client).await? - 1
-    };
-    // TODO: should recheck missed blocks on startup
-    // TODO: starting point should be fetchable from the db
-    let filter = ethers::types::Filter::new()
-        .select(ethers::core::types::BlockNumber::Latest)
-        // TODO: it might be a range of addresses
-        .event("Transfer(address,address,uint256)");
+        Ok(())
+    }
 
-    loop {
-        exit_if_term(term.clone());
-        let _ = tokio::time::sleep(Duration::from_secs(1)).await;
-        log::info!(target: "relayer::client","Latest processed block: {}", latest_processed_block);
-        log::info!(target: "relayer::client","Checking for new blocks");
-        if let Ok(latest_finalized_block) = latest_finalized_block_number(&client).await {
-            log::info!(target: "relayer::client","Latest finalized block: {:?}", latest_finalized_block);
-            if latest_finalized_block < latest_processed_block {
-                log::info!(target: "relayer::client","Latest finalized block is lower than latest processed block. Waiting for finalization.");
-                // TODO: It's not yet finalized
+    async fn finalization_loop(&mut self) -> Result<()> {
+        let mut latest_finalized_block =
+            self.db.select_latest_block_height(BlockType::Finalized)?;
+        let mut duration = tokio::time::interval(Duration::from_secs(5));
+        loop {
+            exit_if_term(self.term.clone());
+            duration.tick().await;
+            let finalized_block = self
+                .client
+                .get_block_by_number(BlockTag::Finalized, false)
+                .await;
+            let finalized_block = if let Ok(Some(finalized_block)) = finalized_block {
+                finalized_block
+            } else {
+                log::warn!(target: "relayer::client::finalization_loop","Failed to get finalized block, retrying in {} seconds", duration.period().as_secs());
+                tokio::time::sleep(Duration::from_secs(5)).await;
                 continue;
-            }
-        } else {
-            log::info!(target: "relayer::client","Failed to get latest finalized block");
-            continue;
-        }
-
-        log::info!(target: "relayer::client","Fetching block: {}", latest_processed_block);
-        // We need to get consensus block.
-        let execution_block = client
-            .get_block_by_number(BlockTag::Number(latest_processed_block), false)
-            .await;
-
-        if let Ok(Some(execution_block)) = execution_block {
-            log::info!(target: "relayer::client","Block fetched");
-            let mut bloom = [0u8; 256];
-            bloom.copy_from_slice(&execution_block.logs_bloom);
-            let block_header = types::BlockHeader {
-                parent_hash: H256(execution_block.hash.0),
-                beneficiary: H160(execution_block.miner.0),
-                state_root: H256(execution_block.state_root.0),
-                transactions_root: H256(execution_block.transactions_root.0),
-                receipts_root: H256(execution_block.receipts_root.0),
-                withdrawals_root: None, // TODO: None for now
-                logs_bloom: Bloom(bloom),
-                number: execution_block.number,
-                gas_limit: execution_block.gas_limit,
-                gas_used: execution_block.gas_used,
-                timestamp: execution_block.timestamp,
-                mix_hash: H256(execution_block.mix_hash.0),
-                base_fee_per_gas: Some(execution_block.base_fee_per_gas.as_u64()),
-                extra_data: execution_block.extra_data.into(),
-
-                // Defaults
-                ommers_hash: H256(execution_block.sha3_uncles.0),
-                difficulty: U256(execution_block.difficulty.into()),
-                nonce: execution_block.nonce.parse().unwrap(),
-
-                // TODO: add conversion once ExecutionPayload has 4844 fields
-                blob_gas_used: None,
-                excess_blob_gas: None,
             };
 
-            let block_hash = H256::hash(block_header);
-            if execution_block.hash.0 == block_hash.0 {
-                log::info!(target: "relayer::client",": ) Block hash is same");
-                latest_processed_block += 1;
-            } else {
-                log::info!(target: "relayer::client",": ( Block hash is different");
+            let latest_processed_block =
+                self.db.select_latest_block_height(BlockType::Processed)?;
+            if Some(finalized_block.number) == latest_finalized_block
+                && Some(finalized_block.number) == latest_processed_block
+            {
+                log::info!(target: "relayer::client::finalization_loop","No new finalized blocks, retrying in {} seconds", duration.period().as_secs());
+                continue;
             }
-        } else {
-            log::info!(target: "relayer::client","Block not found. {execution_block:?}");
+            log::info!(target: "relayer::client::finalization_loop","New finalized block: {}", finalized_block.number);
+
+            if let Err(e) = self.db.insert_or_update_latest_block_info(
+                BlockType::Finalized,
+                finalized_block.number,
+                H256(finalized_block.hash.0),
+            ) {
+                log::error!(target: "relayer::client::finalization_loop","Failed to update latest finalized block info: {}", e);
+                continue;
+            }
+            latest_finalized_block = Some(finalized_block.number);
+            if let Err(e) = self
+                .collect_blocks_after_finality_update(finalized_block)
+                .await
+            {
+                log::error!(target: "relayer::client::finalization_loop","Failed to process finality update: {}", e);
+            } else {
+                log::info!(target: "relayer::client::finalization_loop","Processed finality update");
+            };
+        }
+    }
+
+    async fn collect_blocks_after_finality_update(
+        &mut self,
+        finalized_block: ExecutionBlock,
+    ) -> Result<()> {
+        log::info!(target: "relayer::client::collect_blocks_after_finality_update","Processing finality update");
+        let latest_processed_block = self
+            .db
+            .select_latest_block_height(BlockType::Processed)?
+            .unwrap_or(finalized_block.number - BLOCK_AMOUNT_TO_STORE);
+
+        log::info!(target: "relayer::client::collect_blocks_after_finality_update","Latest processed block: {}", latest_processed_block);
+
+        // Now we have fetch missing blocks using previous block hash until we hit latest processed block.
+        // If it's first run, we have to backtrack for BLOCK_AMOUNT_TO_STORE blocks.
+        let mut blocks_to_process =
+            Vec::with_capacity((finalized_block.number - latest_processed_block) as usize);
+        let mut current_block = finalized_block.number - 1;
+        let mut prev_block_hash = finalized_block.parent_hash;
+        let block = self
+            .block_rpc
+            .get_block(finalized_block.hash)
+            .await?
+            .ok_or_else(|| eyre::eyre!("Block not found"))?;
+        blocks_to_process.push((parse_block(block)?, H256(finalized_block.hash.0)));
+        while current_block != latest_processed_block {
+            let execution_block = self.block_rpc.get_block(prev_block_hash).await;
+            let execution_block = if let Ok(Some(execution_block)) = execution_block {
+                execution_block
+            } else {
+                log::warn!(target: "relayer::client::collect_blocks_after_finality_update","Failed to get block by hash, retrying in 5 seconds");
+                log::warn!(target: "relayer::client::collect_blocks_after_finality_update", "Block number: {}", current_block);
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                continue;
+            };
+            let tmp = execution_block.parent_hash;
+            if let Ok(parsed_block) = parse_block(execution_block) {
+                blocks_to_process.push((parsed_block, H256(prev_block_hash.0)));
+                current_block -= 1;
+                prev_block_hash = tmp;
+            } else {
+                log::warn!(target: "relayer::client::collect_blocks_after_finality_update","Failed to parse block, retrying in 5 seconds");
+                log::warn!(target: "relayer::client::collect_blocks_after_finality_update", "Block number: {}", current_block);
+                tokio::time::sleep(Duration::from_secs(5)).await;
+            }
         }
 
-        // let logs = client.get_logs(&filter).await?;
-        // log::debug!("logs: {:#?}", logs);
-        // 'outer: for log in logs {
-        //     if let Some(block_hash) = log.block_hash {
-        //         if let Ok(Some(block)) = client.get_block_by_hash(&block_hash.encode(), false).await
-        //         {
-        //             let mut receipts = vec![];
-        //             for hash in transactions_to_hashes(block.transactions) {
-        //                 if let Ok(receipt) = client.get_transaction_receipt(&hash).await {
-        //                     receipts.push(receipt)
-        //                 } else {
-        //                     log::warn!(
-        //                         "Could not get a transaction receipt for tx {}",
-        //                         hash.encode_hex()
-        //                     );
-        //                     continue 'outer;
-        //                 }
-        //             }
+        self.process_fetched_blocks(blocks_to_process).await?;
 
-        //             if !receipts.is_empty() {
-        //                 let json = serde_json::to_string(&receipts)?;
-        //                 db.insert_receipts(block_hash, &json)?;
-        //             } else {
-        //                 log::debug!(
-        //                     "Block {} does not have any receipts",
-        //                     block_hash.encode_hex()
-        //                 );
-        //             }
-        //         } else {
-        //             log::info!(target: "relayer::client",
-        //                 "Could not get a block by block_hash {}",
-        //                 block_hash.encode_hex()
-        //             );
-        //             continue 'outer;
-        //         }
-        //         // TODO: Insert latest block as a checkpoint
-        //     }
-        // }
+        Ok(())
+    }
+
+    async fn process_fetched_blocks(&mut self, blocks: Vec<(BlockHeader, H256)>) -> Result<()> {
+        if blocks.is_empty() {
+            return Ok(());
+        }
+
+        let mut processed_block_hash = self
+            .db
+            .select_latest_block_hash(BlockType::Processed)?
+            .unwrap_or_else(|| blocks.last().unwrap().0.parent_hash.clone());
+        for (block_header, block_hash) in blocks.into_iter().rev() {
+            if processed_block_hash != block_header.parent_hash {
+                log::error!(target: "relayer::client::process_fetched_blocks", "Block parent hash mismatch");
+                return Err(eyre::eyre!("Block parent hash mismatch"));
+            }
+            let hash = H256::hash(&block_header);
+            if hash != block_hash {
+                log::error!(target: "relayer::client::process_fetched_blocks","Block hash mismatch");
+                return Err(eyre::eyre!("Block hash mismatch"));
+            }
+            // TODO: bloom filter
+
+            let block_number = block_header.number;
+            self.db
+                .insert_block(block_header.number, block_hash, block_header)?;
+            self.db.insert_or_update_latest_block_info(
+                BlockType::Processed,
+                block_number,
+                hash.clone(),
+            )?;
+
+            processed_block_hash = hash;
+        }
+        Ok(())
     }
 }
 
-fn network(config: &Config) -> Network {
-    match config.network.as_str() {
-        "goerli" => Network::GOERLI,
-        "mainnet" => Network::MAINNET,
-        _ => panic!("Unsupported network"),
-    }
+fn parse_block(execution_block: Block<ethers::types::H256>) -> Result<BlockHeader> {
+    let mut bloom = [0u8; 256];
+    let err = || eyre::eyre!("Failed to parse block");
+    bloom.copy_from_slice(&execution_block.logs_bloom.ok_or_else(err)?.0);
+    let block_header = types::BlockHeader {
+        parent_hash: H256(execution_block.parent_hash.0),
+        beneficiary: H160(execution_block.author.ok_or_else(err)?.0),
+        state_root: H256(execution_block.state_root.0),
+        transactions_root: H256(execution_block.transactions_root.0),
+        receipts_root: H256(execution_block.receipts_root.0),
+        withdrawals_root: execution_block.withdrawals_root.map(|r| H256(r.0)),
+        logs_bloom: Bloom(bloom),
+        number: execution_block.number.ok_or_else(err)?.as_u64(),
+        gas_limit: execution_block.gas_limit.as_u64(),
+        gas_used: execution_block.gas_used.as_u64(),
+        timestamp: execution_block.timestamp.as_u64(),
+        mix_hash: H256(execution_block.mix_hash.ok_or_else(err)?.0),
+        base_fee_per_gas: Some(execution_block.base_fee_per_gas.ok_or_else(err)?.as_u64()),
+        extra_data: execution_block.extra_data.0,
+
+        // Defaults
+        ommers_hash: H256(execution_block.uncles_hash.0),
+        difficulty: U256(execution_block.difficulty.into()),
+        nonce: execution_block.nonce.ok_or_else(err)?.to_low_u64_be(),
+
+        // TODO: add conversion once ExecutionPayload has 4844 fields
+        blob_gas_used: None,
+        excess_blob_gas: None,
+    };
+
+    Ok(block_header)
 }
 
 fn prepare_config(config: &Config) -> HeliosConfig {
@@ -190,30 +256,3 @@ fn exit_if_term(term: Arc<AtomicBool>) {
         exit(0);
     }
 }
-
-async fn advance_thread(node: Arc<RwLock<Node>>) {
-    loop {
-        let res = node.write().await.advance().await;
-        if let Err(err) = res {
-            log::warn!("consensus error: {}", err);
-        }
-
-        let next_update = node.read().await.duration_until_next_update();
-
-        tokio::time::sleep(next_update).await;
-    }
-}
-
-async fn latest_finalized_block_number(node: &Client<FileDB>) -> Result<u64> {
-    let block = node.get_block_by_number(BlockTag::Finalized, false).await?;
-    Ok(block
-        .ok_or_else(|| eyre::eyre!("Could not get the latest block number from the database"))?
-        .number)
-}
-
-// fn transactions_to_hashes(transactions: Transactions) -> Vec<H256> {
-//     match transactions {
-//         Transactions::Hashes(hashes) => hashes,
-//         Transactions::Full(txs) => txs.iter().map(|tx| tx.hash).collect(),
-//     }
-// }

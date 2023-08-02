@@ -24,7 +24,8 @@ sha3.workspace = true
 signal-hook.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 hex.workspace = true
-types.workspace = true
+
+types = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 hex-literal.workspace = true

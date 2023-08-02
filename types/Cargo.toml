@@ -7,11 +7,14 @@ repository.workspace = true
 
 [features]
 debug = []
+std = ["serde/std", "serde-big-array"]
 
 [dependencies]
 alloy-rlp.workspace = true
 bytes.workspace = true
 keccak-hash.workspace = true
+serde = { workspace = true, optional = true }
+serde-big-array = { workspace = true, optional = true }
 
 [dev-dependencies]
 ethers.workspace = true

@@ -7,6 +7,9 @@ use crate::{encode, Bloom, H160, H256, H64, U256};
 ///
 /// [1]: https://ethereum.org/en/developers/docs/blocks/#block-anatomy
 /// [2]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/header.rs#L40-L105
+
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, PartialEq)]
 pub struct BlockHeader {
     /// The Keccak 256-bit hash of the parent
     /// block's header, in its entirety; formally Hp.

@@ -6,14 +6,14 @@ use clap::Parser;
 
 #[derive(Deserialize, Debug, Clone, Parser)]
 pub struct Config {
-    #[arg(short, long)]
+    #[arg(long)]
     pub network: String,
-    #[arg(short, long)]
+    #[arg(long)]
     pub database: PathBuf,
-    #[arg(short, long)]
+    #[arg(long)]
     pub helios_config_path: PathBuf,
-    #[arg(short, long)]
+    #[arg(long)]
     pub server_host: Option<String>,
-    #[arg(short, long)]
+    #[arg(long)]
     pub server_port: Option<u64>,
 }

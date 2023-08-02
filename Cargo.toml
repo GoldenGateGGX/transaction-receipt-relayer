@@ -32,7 +32,7 @@ signal-hook = "0.3.15"
 tokio = "1.28.2"
 proptest = "1.0.0"
 test-strategy = "0.3.0"
-
+serde-big-array = "0.5.0"
 
 types = { path = "types" }
 

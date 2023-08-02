@@ -1,16 +1,17 @@
 use std::sync::{atomic::AtomicBool, Arc};
 
 use clap::Parser;
+use client::Client;
 use eyre::Result;
 use tokio::fs;
 
 mod client;
 mod config;
+pub(crate) mod consts;
 mod db;
 mod merkle;
 mod server;
 
-use client::start_client;
 use config::Config;
 use db::DB;
 use server::start_server;
@@ -37,8 +38,10 @@ async fn main() -> Result<()> {
         log::info!("server was stopped, reason: {:?}", res);
     });
 
+    let mut client = Client::new(config.clone(), db.clone(), term)?;
+
     tokio::spawn(async move {
-        let res = start_client(config, db.clone(), term).await;
+        let res = client.start().await;
         log::info!("client was stopped, reason: {:?}", res);
     })
     .await
