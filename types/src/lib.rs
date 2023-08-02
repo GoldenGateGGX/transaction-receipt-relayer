@@ -1,5 +1,9 @@
 use alloy_rlp::{Encodable, RlpEncodable};
 use bytes::BufMut;
+use keccak_hash::keccak;
+
+mod tx_type;
+pub use tx_type::TxType;
 
 mod primitives;
 pub use primitives::{H160, H256, H64, U256};
@@ -97,28 +101,6 @@ pub struct TransactionReceipt {
     pub bloom: Bloom,
     /// Main receipt body
     pub receipt: Receipt,
-}
-
-/// Transaction Type enum; adapted from [`reth_primitives::TxType`][1].
-///
-/// [1]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/transaction/tx_type.rs#L22-L32
-#[derive(Default, Debug, PartialEq)]
-pub enum TxType {
-    /// Legacy transaction pre EIP-2929
-    #[default]
-    Legacy = 0_isize,
-    /// AccessList transaction
-    EIP2930 = 1_isize,
-    /// Transaction with Priority fee
-    EIP1559 = 2_isize,
-    /// Shard Blob Transactions - EIP-4844
-    EIP4844 = 3_isize,
-}
-
-impl Encodable for TxType {
-    fn encode(&self, _out: &mut dyn BufMut) {
-        unimplemented!()
-    }
 }
 
 /// The receipt structure containing logs from smart contracts we are listening to; adapted from
