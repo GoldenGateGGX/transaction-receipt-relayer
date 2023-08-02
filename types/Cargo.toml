@@ -14,7 +14,7 @@ bytes.workspace = true
 keccak-hash.workspace = true
 
 [dev-dependencies]
-ethers-core.workspace = true
+ethers.workspace = true
 proptest.workspace = true
 test-strategy.workspace = true
 hex-literal.workspace = true

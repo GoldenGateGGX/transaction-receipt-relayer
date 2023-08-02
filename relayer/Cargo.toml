@@ -8,7 +8,7 @@ repository.workspace = true
 [dependencies]
 env_logger.workspace = true
 envy.workspace = true
-ethers-core.workspace = true
+ethers.workspace = true
 eyre.workspace = true
 helios.workspace = true
 clap.workspace = true

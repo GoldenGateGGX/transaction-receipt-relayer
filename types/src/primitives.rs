@@ -50,7 +50,7 @@ mod tests {
     #[proptest]
     fn test_from_u64(a: u64) {
         let u256 = super::U256::from(a);
-        let ethers_u256 = ethers_core::types::U256::from(a);
+        let ethers_u256 = ethers::types::U256::from(a);
         let ethers_u256: [u8; 32] = ethers_u256.into();
 
         assert_eq!(u256.0, ethers_u256);

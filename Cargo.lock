@@ -1272,7 +1272,7 @@ dependencies = [
  "client 0.4.1",
  "env_logger",
  "envy",
- "ethers-core",
+ "ethers",
  "eyre",
  "helios",
  "hex",
@@ -5300,7 +5300,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-rlp",
  "bytes",
- "ethers-core",
+ "ethers",
  "hex-literal",
  "keccak-hash",
  "proptest",
