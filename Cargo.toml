@@ -13,7 +13,7 @@ anyhow = "1.0"
 async-trait = "0.1.72"
 bitvec = { version = "1.0.0", default-features = false, features = ["atomic", "alloc"] }
 bytes = "1.4.0"
-codec = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive", "max-encoded-len"] }
+parity-scale-codec = { version = "3", default-features = false, features = ["derive", "max-encoded-len"] }
 clap = { version = "4.3", features = ["derive"] }
 derive_more = { version = "^0.99.2", default-features = false }
 env_logger = "0.10.0"
@@ -40,6 +40,7 @@ serde_json = "1.0.97"
 sha3 = "0.10.8"
 signal-hook = "0.3.15"
 tiny-keccak = { version = "2.0", features = ["keccak"], default-features = false }
+types = { path = "./types" }
 tokio = "1.28.2"
 
 # Substrate FRAME
@@ -60,8 +61,6 @@ tree-hash-derive = { package = "webb-tree-hash-derive", git = "https://github.co
 consensus = { package = "webb-consensus-types", git = "https://github.com/webb-tools/pallet-eth2-light-client.git", rev = "e05df0967f9d0e33a391b40629c940cc75498f40", default-features = false }
 eth2-pallet-init = { package = "webb-eth2-pallet-init", git = "https://github.com/webb-tools/pallet-eth2-light-client.git", rev = "e05df0967f9d0e33a391b40629c940cc75498f40" }
 webb-proposals = { git = "https://github.com/webb-tools/webb-rs.git", default-features = false, features = ["scale", "evm"] }
-
-
 [patch."https://github.com/a16z/helios.git"]
 helios = { git = "https://github.com/andor0/helios.git", branch = "max-supported-logs-number-as-environ-variable" }
 helios-client = { package = "client", git = "https://github.com/andor0/helios.git", branch = "max-supported-logs-number-as-environ-variable" }

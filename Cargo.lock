@@ -4902,6 +4902,7 @@ dependencies = [
  "sp-runtime 7.0.0",
  "sp-std 5.0.0",
  "tiny-keccak 2.0.2",
+ "types 0.1.0",
  "webb-bls",
  "webb-consensus-types",
  "webb-eth2-pallet-init",

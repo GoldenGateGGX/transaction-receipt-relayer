@@ -10,7 +10,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 serde = { workspace = true, optional = true }
-codec.workspace = true
+parity-scale-codec.workspace = true
 scale-info.workspace = true
 webb-proposals.workspace = true
 ethereum-types.workspace = true
@@ -34,6 +34,7 @@ pallet-balances.workspace = true
 sp-runtime.workspace = true
 sp-std.workspace = true
 sp-core.workspace = true
+types.workspace = true
 hex.workspace = true
 
 [dev-dependencies]
@@ -47,7 +48,7 @@ async-trait.workspace = true
 default = ["std"]
 std = [
 	"serde/std",
-	"codec/std",
+	"parity-scale-codec/std",
 	"scale-info/std",
 	"webb-proposals/std",
 	"ethereum-types/std",
