@@ -1,9 +1,75 @@
 [package]
-name = "pallet"
+name = "pallet-eth2-light-client"
 version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
+serde = { workspace = true, optional = true }
+codec.workspace = true
+scale-info.workspace = true
+webb-proposals.workspace = true
+ethereum-types.workspace = true
+derive_more.workspace = true
+rlp.workspace = true
+rlp-derive.workspace = true
+tiny-keccak.workspace = true
+bitvec.workspace = true
+
+eth-types.workspace = true
+eth2-ssz.workspace = true
+merkle-proof.workspace = true
+bls.workspace = true
+tree-hash.workspace = true
+tree-hash-derive.workspace = true
+consensus.workspace = true
+
+frame-support.workspace = true
+frame-system.workspace = true
+pallet-balances.workspace = true
+sp-runtime.workspace = true
+sp-std.workspace = true
+sp-core.workspace = true
+hex.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+lazy_static.workspace = true
+serde_json.workspace = true
+eth2-pallet-init.workspace = true
+async-trait.workspace = true
+
+[features]
+default = ["std"]
+std = [
+	"serde/std",
+	"codec/std",
+	"scale-info/std",
+	"webb-proposals/std",
+	"ethereum-types/std",
+	"rlp/std",
+	"bitvec/std",
+	"frame-support/std",
+	"frame-system/std",
+	"pallet-balances/std",
+	"sp-runtime/std",
+	"sp-std/std",
+	"sp-core/std",
+	"hex/std",
+	
+
+	# Local dependencies
+	"bls/std",
+	"consensus/std",
+	"eth-types/std",
+	"eth2-ssz/std",
+	"tree-hash/std",
+	"merkle-proof/std",
+	
+]
+
+try-runtime = ["frame-support/try-runtime"]
