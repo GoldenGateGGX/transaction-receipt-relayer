@@ -32,7 +32,7 @@ impl DB {
 
     pub fn create_tables(&self) -> Result<()> {
         let conn = self.conn.lock().expect("acquire mutex");
-        let sql = include_str!("../sql/create_tables.sql");
+        let sql = include_str!("./sql/create_tables.sql");
         Ok(conn.execute_batch(sql)?)
     }
 
