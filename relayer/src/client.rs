@@ -195,7 +195,7 @@ impl Client {
 
             let block_number = block_header.number;
             self.db
-                .insert_block(block_header.number, block_hash, block_header)?;
+                .insert_block(block_number, block_hash, block_header)?;
             self.db.insert_or_update_latest_block_info(
                 BlockType::Processed,
                 block_number,
