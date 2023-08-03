@@ -191,9 +191,11 @@ impl Client {
                 log::error!(target: TARGET,"Block hash mismatch");
                 return Err(eyre::eyre!("Block hash mismatch"));
             }
-            // TODO: bloom filter
 
             let block_number = block_header.number;
+            // TODO: process bloom filter.
+
+            // TODO: this operation should be revertable.
             self.db
                 .insert_block(block_number, block_hash, block_header)?;
             self.db.insert_or_update_latest_block_info(
@@ -219,7 +221,7 @@ fn parse_block(execution_block: Block<ethers::types::H256>) -> Result<BlockHeade
         transactions_root: H256(execution_block.transactions_root.0),
         receipts_root: H256(execution_block.receipts_root.0),
         withdrawals_root: execution_block.withdrawals_root.map(|r| H256(r.0)),
-        logs_bloom: Bloom(bloom),
+        logs_bloom: Bloom::new(bloom),
         number: execution_block.number.ok_or_else(err)?.as_u64(),
         gas_limit: execution_block.gas_limit.as_u64(),
         gas_used: execution_block.gas_used.as_u64(),

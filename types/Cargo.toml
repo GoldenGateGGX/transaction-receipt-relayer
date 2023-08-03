@@ -13,6 +13,7 @@ std = ["serde/std", "serde-big-array"]
 alloy-rlp.workspace = true
 bytes.workspace = true
 keccak-hash.workspace = true
+ethbloom = { workspace = true, default-features = false }
 serde = { workspace = true, optional = true }
 serde-big-array = { workspace = true, optional = true }
 
