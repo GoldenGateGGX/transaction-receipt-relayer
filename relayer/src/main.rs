@@ -12,7 +12,7 @@ mod db;
 mod merkle;
 mod server;
 
-use config::Config;
+use config::{Config, WatchAddress};
 use db::DB;
 use server::start_server;
 
@@ -38,7 +38,8 @@ async fn main() -> Result<()> {
         log::info!("server was stopped, reason: {:?}", res);
     });
 
-    let mut client = Client::new(config.clone(), db.clone(), term)?;
+    let watch_addresses = WatchAddress::decode_config(&config.watch_dog_config)?;
+    let mut client = Client::new(config.clone(), db.clone(), term, watch_addresses)?;
 
     tokio::spawn(async move {
         let res = client.start().await;

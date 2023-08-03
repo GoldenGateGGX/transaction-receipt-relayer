@@ -1286,6 +1286,7 @@ dependencies = [
  "sha3",
  "signal-hook",
  "tokio",
+ "toml 0.7.4",
  "types",
 ]
 

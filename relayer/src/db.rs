@@ -65,18 +65,18 @@ impl DB {
             .cloned())
     }
 
-    pub fn insert_or_update_latest_block_info(
+    pub fn insert_or_update_finalized_block_info(
         &self,
-        block_type: BlockType,
         block_number: u64,
         block_hash: H256,
     ) -> Result<()> {
         let conn = self.conn.lock().expect("acquire mutex");
-        let mut stmt = conn.prepare(
-            "INSERT OR REPLACE INTO latest_block(block_type, block_height, block_hash) values (?1, ?2, ?3)",
-        )?;
-        stmt.execute((block_type as u64, block_number, block_hash.0.encode_hex()))?;
-        Ok(())
+        insert_or_update_latest_block_info_impl(
+            &conn,
+            BlockType::Finalized,
+            block_number,
+            block_hash,
+        )
     }
 
     pub fn insert_block(
@@ -84,16 +84,35 @@ impl DB {
         block_number: u64,
         block_hash: H256,
         block_header: BlockHeader,
-    ) -> Result<usize> {
-        let conn = self.conn.lock().expect("acquire mutex");
-        Ok(conn.execute(
+        should_process: bool,
+    ) -> Result<()> {
+        let mut conn = self.conn.lock().expect("acquire mutex");
+        let sp = conn.savepoint()?;
+        sp.execute(
             "INSERT INTO blocks(block_height, block_hash, block_header) values (?1, ?2, ?3)",
             (
                 block_number,
                 block_hash.0.encode_hex(),
                 serde_json::to_string(&block_header)?,
             ),
-        )?)
+        )?;
+
+        insert_or_update_latest_block_info_impl(
+            &sp,
+            BlockType::Processed,
+            block_number,
+            block_hash,
+        )?;
+
+        if should_process {
+            sp.execute(
+                "INSERT INTO blocks_to_process(block_height, is_processed) values (?1, 0)",
+                (block_number,),
+            )?;
+        }
+
+        sp.commit()?;
+        Ok(())
     }
 
     #[allow(dead_code)]
@@ -157,4 +176,17 @@ impl DB {
             .flat_map(|raw_receipts| serde_json::from_str(&raw_receipts))
             .collect())
     }
+}
+
+fn insert_or_update_latest_block_info_impl(
+    conn: &Connection,
+    block_type: BlockType,
+    block_number: u64,
+    block_hash: H256,
+) -> Result<()> {
+    let mut stmt = conn.prepare(
+        "INSERT OR REPLACE INTO latest_block(block_type, block_height, block_hash) values (?1, ?2, ?3)",
+    )?;
+    stmt.execute((block_type as u64, block_number, block_hash.0.encode_hex()))?;
+    Ok(())
 }

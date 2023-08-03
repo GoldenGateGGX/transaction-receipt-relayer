@@ -9,7 +9,7 @@ impl Bloom {
         Self(ethbloom::Bloom(bytes))
     }
 
-    pub fn check_address(&self, address: H160) -> bool {
+    pub fn check_address(&self, address: &H160) -> bool {
         self.0.contains_input(ethbloom::Input::Raw(&address.0))
     }
 }

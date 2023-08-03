@@ -23,7 +23,7 @@ use helios_client::{database::FileDB, Client as HeliosClient};
 use types::{BlockHeader, Bloom, H160, H256, U256};
 
 use crate::{
-    config::Config,
+    config::{Config, WatchAddress},
     consts::BLOCK_AMOUNT_TO_STORE,
     db::{BlockType, DB},
 };
@@ -33,10 +33,16 @@ pub struct Client {
     block_rpc: Provider<Http>,
     db: DB,
     term: Arc<AtomicBool>,
+    watch_addresses: Vec<WatchAddress>,
 }
 
 impl Client {
-    pub fn new(config: Config, db: DB, term: Arc<AtomicBool>) -> Result<Self> {
+    pub fn new(
+        config: Config,
+        db: DB,
+        term: Arc<AtomicBool>,
+        watch_addresses: Vec<WatchAddress>,
+    ) -> Result<Self> {
         let helios_config = prepare_config(&config);
         let block_rpc = Provider::<Http>::try_from(&helios_config.execution_rpc)?;
         let client: HeliosClient<FileDB> = ClientBuilder::new()
@@ -52,6 +58,8 @@ impl Client {
             block_rpc,
             db,
             term,
+            // TODO: proper handling
+            watch_addresses,
         })
     }
 
@@ -97,8 +105,7 @@ impl Client {
             }
             log::info!(target: TARGET,"New finalized block: {}", finalized_block.number);
 
-            if let Err(e) = self.db.insert_or_update_latest_block_info(
-                BlockType::Finalized,
+            if let Err(e) = self.db.insert_or_update_finalized_block_info(
                 finalized_block.number,
                 H256(finalized_block.hash.0),
             ) {
@@ -193,16 +200,14 @@ impl Client {
             }
 
             let block_number = block_header.number;
-            // TODO: process bloom filter.
 
-            // TODO: this operation should be revertable.
+            let should_process = self
+                .watch_addresses
+                .iter()
+                .any(|address| address.try_against(&block_header.logs_bloom));
+
             self.db
-                .insert_block(block_number, block_hash, block_header)?;
-            self.db.insert_or_update_latest_block_info(
-                BlockType::Processed,
-                block_number,
-                hash.clone(),
-            )?;
+                .insert_block(block_number, block_hash, block_header, should_process)?;
 
             processed_block_hash = hash;
         }
