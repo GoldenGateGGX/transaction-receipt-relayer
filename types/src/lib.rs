@@ -1,7 +1,7 @@
-use alloy_rlp::RlpEncodable;
-
-mod tx_type;
-pub use tx_type::TxType;
+mod receipt;
+pub use receipt::{
+    Log, Receipt, ReceiptMerkleProof, ReceiptMerkleProofNode, TransactionReceipt, TxType,
+};
 
 mod primitives;
 pub use primitives::{H160, H256, H64, U256};
@@ -14,12 +14,6 @@ pub use bloom::Bloom;
 
 pub(crate) mod encode;
 
-/// A trait for types that can be hashed to a `H256`.
-pub trait KeccakHashable {
-    fn keccak_hash(&self) -> H256;
-}
-
-// #[derive(Debug, RlpEncodable, RlpDecodable, PartialEq)]
 pub struct EventProof {
     /// Block corresponding to a [stored block hash][1] in Webb's `pallet-eth2-light-client`.
     /// The hash of this structure is computed using its [rlp][2] representation. In particular, this is the 12th field of `execution_payload`,
@@ -84,84 +78,5 @@ impl EventProof {
             });
         }
         Ok(())
-    }
-}
-
-/// The receipt structure containing logs from smart contracts we are listening to; adapted from
-/// [`reth_primitives::ReceiptWithBloom`][1].
-///
-/// [1]: https://ethereum.org/en/developers/docs/blocks/#block-anatomy
-/// [2]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/receipt.rs#L57-L62
-
-#[derive(Debug, RlpEncodable, PartialEq)]
-pub struct TransactionReceipt {
-    /// Bloom filter build from logs.
-    pub bloom: Bloom,
-    /// Main receipt body
-    pub receipt: Receipt,
-}
-
-/// The receipt structure containing logs from smart contracts we are listening to; adapted from
-/// [`reth_primitives::Receipt`][1].
-///
-/// [1]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/receipt.rs#L14-L31
-#[derive(Debug, RlpEncodable, PartialEq)]
-pub struct Receipt {
-    /// Receipt type.
-    pub tx_type: TxType,
-    /// If transaction is executed successfully.
-    ///
-    /// This is the `statusCode`
-    pub success: bool,
-    /// Gas used
-    pub cumulative_gas_used: u64,
-    /// Logs sent from contracts.
-    pub logs: Vec<Log>,
-}
-
-#[derive(Debug, RlpEncodable, PartialEq)]
-pub struct Log {
-    /// Contract that emitted this log.
-    pub address: H160,
-    /// Topics of the log. The number of logs depend on what `LOG` opcode is used.
-    pub topics: Vec<H256>,
-    /// Arbitrary length data.
-    pub data: Vec<u8>,
-}
-
-/// Nodes of a Merkle proof that a transaction has been included in a block. Corresponds to `branch`
-/// and `extension` nodes for in the [Patricia Merkle Trie][1] used representing included
-/// transaction receipts.
-///
-/// [1]: https://ethereum.org/se/developers/docs/data-structures-and-encoding/patricia-merkle-trie/
-pub enum ReceiptMerkleProofNode {
-    ExtensionNode {
-        prefix: Vec<u8>,
-    },
-    BranchNode {
-        /// Nibble representing which branch of the node is taken.
-        index: u8,
-        branches: Box<[Option<Vec<u8>>; 16]>,
-    },
-}
-
-/// A Merkle proof that a transaction receipt has been included in a block.
-///
-/// Merkle proofs for transaction receipts use Ethereum's [Patricia Merkle Trie][1] data structure.
-/// The `receipt_root` field in a block is the root of the trie.
-///
-/// Requires a [`TransactionReceipt`] to generate a leaf node, and the rest of the proof proceeds
-/// from the leaf node.
-///
-/// [1]: https://ethereum.org/se/developers/docs/data-structures-and-encoding/patricia-merkle-trie/
-pub struct ReceiptMerkleProof {
-    pub proof: Vec<ReceiptMerkleProofNode>,
-}
-
-impl ReceiptMerkleProof {
-    /// Given a transaction receipt, compute the Merkle root of the Patricia Merkle Trie using the
-    /// rest of the Merkle proof.
-    pub fn merkle_root(&self, _leaf: &TransactionReceipt) -> H256 {
-        unimplemented!()
     }
 }

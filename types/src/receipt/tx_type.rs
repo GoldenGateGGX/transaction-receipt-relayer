@@ -19,6 +19,7 @@ pub enum TxType {
 
 impl Encodable for TxType {
     /// TxType is encoded as [`u8`][1].
+    ///
     /// [1]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/transaction/mod.rs#L556
     fn encode(&self, out: &mut dyn BufMut) {
         out.put_u8(*self as u8)
