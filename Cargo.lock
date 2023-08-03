@@ -1286,6 +1286,7 @@ dependencies = [
  "sha3",
  "signal-hook",
  "tokio",
+ "toml 0.7.4",
  "types",
 ]
 
@@ -5310,6 +5311,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-rlp",
  "bytes",
+ "ethbloom 0.13.0",
  "ethers",
  "hex-literal",
  "keccak-hash",

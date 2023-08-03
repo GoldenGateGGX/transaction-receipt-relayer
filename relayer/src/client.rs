@@ -23,7 +23,7 @@ use helios_client::{database::FileDB, Client as HeliosClient};
 use types::{BlockHeader, Bloom, H160, H256, U256};
 
 use crate::{
-    config::Config,
+    config::{Config, WatchAddress},
     consts::BLOCK_AMOUNT_TO_STORE,
     db::{BlockType, DB},
 };
@@ -33,10 +33,16 @@ pub struct Client {
     block_rpc: Provider<Http>,
     db: DB,
     term: Arc<AtomicBool>,
+    watch_addresses: Vec<WatchAddress>,
 }
 
 impl Client {
-    pub fn new(config: Config, db: DB, term: Arc<AtomicBool>) -> Result<Self> {
+    pub fn new(
+        config: Config,
+        db: DB,
+        term: Arc<AtomicBool>,
+        watch_addresses: Vec<WatchAddress>,
+    ) -> Result<Self> {
         let helios_config = prepare_config(&config);
         let block_rpc = Provider::<Http>::try_from(&helios_config.execution_rpc)?;
         let client: HeliosClient<FileDB> = ClientBuilder::new()
@@ -52,6 +58,8 @@ impl Client {
             block_rpc,
             db,
             term,
+            // TODO: proper handling
+            watch_addresses,
         })
     }
 
@@ -97,8 +105,7 @@ impl Client {
             }
             log::info!(target: TARGET,"New finalized block: {}", finalized_block.number);
 
-            if let Err(e) = self.db.insert_or_update_latest_block_info(
-                BlockType::Finalized,
+            if let Err(e) = self.db.insert_or_update_finalized_block_info(
                 finalized_block.number,
                 H256(finalized_block.hash.0),
             ) {
@@ -191,16 +198,16 @@ impl Client {
                 log::error!(target: TARGET,"Block hash mismatch");
                 return Err(eyre::eyre!("Block hash mismatch"));
             }
-            // TODO: bloom filter
 
             let block_number = block_header.number;
+
+            let should_process = self
+                .watch_addresses
+                .iter()
+                .any(|address| address.try_against(&block_header.logs_bloom));
+
             self.db
-                .insert_block(block_number, block_hash, block_header)?;
-            self.db.insert_or_update_latest_block_info(
-                BlockType::Processed,
-                block_number,
-                hash.clone(),
-            )?;
+                .insert_block(block_number, block_hash, block_header, should_process)?;
 
             processed_block_hash = hash;
         }
@@ -219,7 +226,7 @@ fn parse_block(execution_block: Block<ethers::types::H256>) -> Result<BlockHeade
         transactions_root: H256(execution_block.transactions_root.0),
         receipts_root: H256(execution_block.receipts_root.0),
         withdrawals_root: execution_block.withdrawals_root.map(|r| H256(r.0)),
-        logs_bloom: Bloom(bloom),
+        logs_bloom: Bloom::new(bloom),
         number: execution_block.number.ok_or_else(err)?.as_u64(),
         gas_limit: execution_block.gas_limit.as_u64(),
         gas_used: execution_block.gas_used.as_u64(),
