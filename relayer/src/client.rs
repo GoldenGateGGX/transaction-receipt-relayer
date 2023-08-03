@@ -67,6 +67,8 @@ impl Client {
     }
 
     async fn finalization_loop(&mut self) -> Result<()> {
+        const TARGET: &str = "relayer::client::finalization_loop";
+
         let mut latest_finalized_block =
             self.db.select_latest_block_height(BlockType::Finalized)?;
         let mut duration = tokio::time::interval(Duration::from_secs(5));
@@ -80,7 +82,7 @@ impl Client {
             let finalized_block = if let Ok(Some(finalized_block)) = finalized_block {
                 finalized_block
             } else {
-                log::warn!(target: "relayer::client::finalization_loop","Failed to get finalized block, retrying in {} seconds", duration.period().as_secs());
+                log::warn!(target: TARGET,"Failed to get finalized block, retrying in {} seconds", duration.period().as_secs());
                 tokio::time::sleep(Duration::from_secs(5)).await;
                 continue;
             };
@@ -90,17 +92,17 @@ impl Client {
             if Some(finalized_block.number) == latest_finalized_block
                 && Some(finalized_block.number) == latest_processed_block
             {
-                log::info!(target: "relayer::client::finalization_loop","No new finalized blocks, retrying in {} seconds", duration.period().as_secs());
+                log::info!(target: TARGET,"No new finalized blocks, retrying in {} seconds", duration.period().as_secs());
                 continue;
             }
-            log::info!(target: "relayer::client::finalization_loop","New finalized block: {}", finalized_block.number);
+            log::info!(target: TARGET,"New finalized block: {}", finalized_block.number);
 
             if let Err(e) = self.db.insert_or_update_latest_block_info(
                 BlockType::Finalized,
                 finalized_block.number,
                 H256(finalized_block.hash.0),
             ) {
-                log::error!(target: "relayer::client::finalization_loop","Failed to update latest finalized block info: {}", e);
+                log::error!(target: TARGET,"Failed to update latest finalized block info: {}", e);
                 continue;
             }
             latest_finalized_block = Some(finalized_block.number);
@@ -108,9 +110,9 @@ impl Client {
                 .collect_blocks_after_finality_update(finalized_block)
                 .await
             {
-                log::error!(target: "relayer::client::finalization_loop","Failed to process finality update: {}", e);
+                log::error!(target: TARGET,"Failed to process finality update: {}", e);
             } else {
-                log::info!(target: "relayer::client::finalization_loop","Processed finality update");
+                log::info!(target: TARGET,"Processed finality update");
             };
         }
     }
@@ -119,13 +121,15 @@ impl Client {
         &mut self,
         finalized_block: ExecutionBlock,
     ) -> Result<()> {
-        log::info!(target: "relayer::client::collect_blocks_after_finality_update","Processing finality update");
+        const TARGET: &str = "relayer::client::collect_blocks_after_finality_update";
+
+        log::info!(target: TARGET,"Processing finality update");
         let latest_processed_block = self
             .db
             .select_latest_block_height(BlockType::Processed)?
             .unwrap_or(finalized_block.number - BLOCK_AMOUNT_TO_STORE);
 
-        log::info!(target: "relayer::client::collect_blocks_after_finality_update","Latest processed block: {}", latest_processed_block);
+        log::info!(target: TARGET,"Latest processed block: {}", latest_processed_block);
 
         // Now we have fetch missing blocks using previous block hash until we hit latest processed block.
         // If it's first run, we have to backtrack for BLOCK_AMOUNT_TO_STORE blocks.
@@ -144,8 +148,8 @@ impl Client {
             let execution_block = if let Ok(Some(execution_block)) = execution_block {
                 execution_block
             } else {
-                log::warn!(target: "relayer::client::collect_blocks_after_finality_update","Failed to get block by hash, retrying in 5 seconds");
-                log::warn!(target: "relayer::client::collect_blocks_after_finality_update", "Block number: {}", current_block);
+                log::warn!(target: TARGET,"Failed to get block by hash, retrying in 5 seconds");
+                log::warn!(target: TARGET, "Block number: {}", current_block);
                 tokio::time::sleep(Duration::from_secs(5)).await;
                 continue;
             };
@@ -155,8 +159,8 @@ impl Client {
                 current_block -= 1;
                 prev_block_hash = tmp;
             } else {
-                log::warn!(target: "relayer::client::collect_blocks_after_finality_update","Failed to parse block, retrying in 5 seconds");
-                log::warn!(target: "relayer::client::collect_blocks_after_finality_update", "Block number: {}", current_block);
+                log::warn!(target: TARGET,"Failed to parse block, retrying in 5 seconds");
+                log::warn!(target: TARGET, "Block number: {}", current_block);
                 tokio::time::sleep(Duration::from_secs(5)).await;
             }
         }
@@ -167,6 +171,8 @@ impl Client {
     }
 
     async fn process_fetched_blocks(&mut self, blocks: Vec<(BlockHeader, H256)>) -> Result<()> {
+        const TARGET: &str = "relayer::client::process_fetched_blocks";
+
         if blocks.is_empty() {
             return Ok(());
         }
@@ -177,12 +183,12 @@ impl Client {
             .unwrap_or_else(|| blocks.last().unwrap().0.parent_hash.clone());
         for (block_header, block_hash) in blocks.into_iter().rev() {
             if processed_block_hash != block_header.parent_hash {
-                log::error!(target: "relayer::client::process_fetched_blocks", "Block parent hash mismatch");
+                log::error!(target: TARGET, "Block parent hash mismatch");
                 return Err(eyre::eyre!("Block parent hash mismatch"));
             }
             let hash = H256::hash(&block_header);
             if hash != block_hash {
-                log::error!(target: "relayer::client::process_fetched_blocks","Block hash mismatch");
+                log::error!(target: TARGET,"Block hash mismatch");
                 return Err(eyre::eyre!("Block hash mismatch"));
             }
             // TODO: bloom filter
