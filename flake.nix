@@ -46,7 +46,13 @@
           pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
 
         craneLib = (crane.mkLib pkgs).overrideToolchain rust-toolchain;
-        src = craneLib.cleanCargoSource (craneLib.path ./.);
+        sqlFilter = path: _type: builtins.match ".*sql$" path != null;
+        sqlOrCargo = path: type:
+          (sqlFilter path type) || (craneLib.filterCargoSources path type);
+        src = lib.cleanSourceWith {
+          src = (craneLib.path ./.);
+          filter = sqlOrCargo;
+        };
 
         # but many build.rs do - so we add little bit slowness for simplificaiton and reproduceability
         rustNativeBuildInputs = with pkgs; [ clang pkg-config gnumake ];
