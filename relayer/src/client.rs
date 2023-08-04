@@ -1,5 +1,4 @@
 use std::{
-    path::PathBuf,
     process::exit,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -47,18 +46,13 @@ impl Client {
         let block_rpc = Provider::<Http>::try_from(&helios_config.execution_rpc)?;
         let client: HeliosClient<FileDB> = ClientBuilder::new()
             .config(helios_config)
-            .data_dir(
-                vec![config.database, PathBuf::from("helios")]
-                    .iter()
-                    .collect(),
-            )
+            .data_dir(config.database.join("helios"))
             .build()?;
         Ok(Client {
             client,
             block_rpc,
             db,
             term,
-            // TODO: proper handling
             watch_addresses,
         })
     }
@@ -68,18 +62,20 @@ impl Client {
         self.client.start().await?;
         log::info!(target: "relayer::client::start","client started");
 
-        // TODO: should recheck missed blocks on startup
         self.finalization_loop().await?;
 
         Ok(())
     }
 
+    /// Tries to get finalized block from Helios and updates
+    /// latest finalized block in DB every 5 seconds.
     async fn finalization_loop(&mut self) -> Result<()> {
         const TARGET: &str = "relayer::client::finalization_loop";
 
         let mut latest_finalized_block =
             self.db.select_latest_block_height(BlockType::Finalized)?;
         let mut duration = tokio::time::interval(Duration::from_secs(5));
+
         loop {
             exit_if_term(self.term.clone());
             duration.tick().await;
@@ -91,7 +87,6 @@ impl Client {
                 finalized_block
             } else {
                 log::warn!(target: TARGET,"Failed to get finalized block, retrying in {} seconds", duration.period().as_secs());
-                tokio::time::sleep(Duration::from_secs(5)).await;
                 continue;
             };
 
@@ -124,6 +119,8 @@ impl Client {
         }
     }
 
+    /// Fetches all blocks from the web3 provider. The fetching goes backwards from the latest finalized block
+    /// to the latest processed block using parent hash.
     async fn collect_blocks_after_finality_update(
         &mut self,
         finalized_block: ExecutionBlock,
@@ -142,6 +139,7 @@ impl Client {
         // If it's first run, we have to backtrack for BLOCK_AMOUNT_TO_STORE blocks.
         let mut blocks_to_process =
             Vec::with_capacity((finalized_block.number - latest_processed_block) as usize);
+
         let mut current_block = finalized_block.number - 1;
         let mut prev_block_hash = finalized_block.parent_hash;
         let block = self
@@ -149,8 +147,21 @@ impl Client {
             .get_block(finalized_block.hash)
             .await?
             .ok_or_else(|| eyre::eyre!("Block not found"))?;
+        // push first finalized block to the queue
         blocks_to_process.push((parse_block(block)?, H256(finalized_block.hash.0)));
+
+        let mut repeat = 0;
+        let repeat_cycle = |repeat_counter| {
+            const RETRIES: u64 = 10;
+            if repeat_counter < RETRIES {
+                Ok(repeat_counter + 1)
+            } else {
+                Err(eyre::eyre!("Multiple retries happened"))
+            }
+        };
+
         while current_block != latest_processed_block {
+            // Fetch block by parent hash using web3 interface
             let execution_block = self.block_rpc.get_block(prev_block_hash).await;
             let execution_block = if let Ok(Some(execution_block)) = execution_block {
                 execution_block
@@ -158,16 +169,22 @@ impl Client {
                 log::warn!(target: TARGET,"Failed to get block by hash, retrying in 5 seconds");
                 log::warn!(target: TARGET, "Block number: {}", current_block);
                 tokio::time::sleep(Duration::from_secs(5)).await;
+                repeat = repeat_cycle(repeat)?;
                 continue;
             };
             let tmp = execution_block.parent_hash;
+            // parse block to our format
             if let Ok(parsed_block) = parse_block(execution_block) {
+                // store requested hash to verify later
                 blocks_to_process.push((parsed_block, H256(prev_block_hash.0)));
                 current_block -= 1;
                 prev_block_hash = tmp;
+                // reset repeat as we had a success.
+                repeat = 0;
             } else {
                 log::warn!(target: TARGET,"Failed to parse block, retrying in 5 seconds");
                 log::warn!(target: TARGET, "Block number: {}", current_block);
+                repeat = repeat_cycle(repeat)?;
                 tokio::time::sleep(Duration::from_secs(5)).await;
             }
         }
@@ -177,6 +194,8 @@ impl Client {
         Ok(())
     }
 
+    /// Process fetched blocks, check the block hash, bloom filter and store records in the database.
+    /// The blocks are processed from the latest processed block + 1 to the latest block.
     async fn process_fetched_blocks(&mut self, blocks: Vec<(BlockHeader, H256)>) -> Result<()> {
         const TARGET: &str = "relayer::client::process_fetched_blocks";
 
@@ -184,15 +203,19 @@ impl Client {
             return Ok(());
         }
 
+        // Load latest processed block hash from the database.
         let mut processed_block_hash = self
             .db
             .select_latest_block_hash(BlockType::Processed)?
             .unwrap_or_else(|| blocks.last().unwrap().0.parent_hash.clone());
         for (block_header, block_hash) in blocks.into_iter().rev() {
+            // First initial check that it's in order. And that the parent block hash is expected.
             if processed_block_hash != block_header.parent_hash {
                 log::error!(target: TARGET, "Block parent hash mismatch");
                 return Err(eyre::eyre!("Block parent hash mismatch"));
             }
+
+            // Verify block hash correctness
             let hash = H256::hash(&block_header);
             if hash != block_hash {
                 log::error!(target: TARGET,"Block hash mismatch");
@@ -201,11 +224,13 @@ impl Client {
 
             let block_number = block_header.number;
 
+            // Check the bloom filter over expected contracts
             let should_process = self
                 .watch_addresses
                 .iter()
                 .any(|address| address.try_against(&block_header.logs_bloom));
 
+            // Store block in the database
             self.db
                 .insert_block(block_number, block_hash, block_header, should_process)?;
 
