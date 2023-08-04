@@ -42,6 +42,8 @@ signal-hook = "0.3.15"
 tiny-keccak = { version = "2.0", features = ["keccak"], default-features = false }
 types = { path = "./types" }
 tokio = "1.28.2"
+proptest = "1.0.0"
+test-strategy = "0.3.0"
 
 # Substrate FRAME
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }

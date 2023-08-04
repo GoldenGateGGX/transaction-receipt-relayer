@@ -5,7 +5,16 @@ edition.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+[features]
+debug = []
+
 [dependencies]
 alloy-rlp.workspace = true
 bytes.workspace = true
 keccak-hash.workspace = true
+
+[dev-dependencies]
+ethers.workspace = true
+proptest.workspace = true
+test-strategy.workspace = true
+hex-literal.workspace = true
