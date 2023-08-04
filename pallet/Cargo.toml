@@ -19,11 +19,11 @@ rlp.workspace = true
 rlp-derive.workspace = true
 tiny-keccak.workspace = true
 bitvec.workspace = true
-
 eth-types.workspace = true
 eth2-ssz.workspace = true
 merkle-proof.workspace = true
 bls.workspace = true
+hex-literal.workspace = true
 tree-hash.workspace = true
 tree-hash-derive.workspace = true
 consensus.workspace = true

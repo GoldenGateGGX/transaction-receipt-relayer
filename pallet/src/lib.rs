@@ -83,20 +83,22 @@ use eth_types::{
     pallet::{ClientMode, ExecutionHeaderInfo, InitInput},
     BlockHeader, H256,
 };
+use frame_support::traits::ExistenceRequirement::AllowDeath;
 use frame_support::{
     pallet_prelude::{ensure, DispatchError},
     traits::Get,
     PalletId,
 };
+pub use pallet::*;
 use sp_std::{convert::TryInto, prelude::*};
 use tree_hash::TreeHash;
+use types::{EventProof, TransactionReceipt, H160};
 use webb_proposals::TypedChainId;
-use types::EventProof;
-pub use pallet::*;
 
 use bitvec::prelude::{BitVec, Lsb0};
 
 use frame_support::{sp_runtime::traits::AccountIdConversion, traits::Currency};
+use hex_literal::hex;
 
 type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -291,6 +293,54 @@ pub mod pallet {
     pub(super) type NetworkConfigForChain<T: Config> =
         StorageMap<_, Blake2_128Concat, TypedChainId, NetworkConfig, OptionQuery>;
 
+    /// ProcessedReceipts
+    /// Hashes of transaction receipts already processed. Stores up to
+    /// [`hashes_gc_threshold`][1] entries.
+    ///
+    /// TypedChainId -> BlockNumber -> TransactionReceiptHash -> ()
+    ///
+    /// [1]: https://github.com/webb-tools/pallet-eth2-light-client/blob/4d8a20ad325795a2d166fcd2a6118db3037581d3/pallet/src/lib.rs#L218-L219
+    #[pallet::storage]
+    #[pallet::getter(fn processed_receipts)]
+    type ProcessedReceipts<T: Config> = StorageNMap<
+        _,
+        (
+            NMapKey<Blake2_128Concat, TypedChainId>, // ChainList Id https://chainlist.org/
+            NMapKey<Blake2_128Concat, u64>,          // Block height
+            NMapKey<Blake2_128Concat, types::H256>,  // Hash of the receipt already processed
+        ),
+        (),
+        OptionQuery,
+    >;
+
+    /// querying that the inclusion-proof for a receipt has been processed or not
+    #[pallet::storage]
+    #[pallet::getter(fn processed_receipts_hash)]
+    type ProcessedReceiptsHash<T: Config> = StorageDoubleMap<
+        _,
+        Blake2_128Concat,
+        TypedChainId, // ChainList Id https://chainlist.org/
+        Blake2_128Concat,
+        types::H256, // Hash of the receipt already processed
+        (),
+        OptionQuery,
+    >;
+
+    /// the contract address we watching
+    #[pallet::storage]
+    #[pallet::getter(fn contract_address)]
+    pub(crate) type ContractAddress<T: Config> = StorageValue<_, H160, ValueQuery>;
+
+    /// pay validator proof deposit
+    #[pallet::storage]
+    #[pallet::getter(fn validator_proof_deposit)]
+    pub(crate) type ValidatorProofDeposit<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
+    /// reward for Proof of Submission
+    #[pallet::storage]
+    #[pallet::getter(fn proof_reward)]
+    pub(crate) type ProofReward<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
     /************* STORAGE ************ */
 
     #[pallet::event]
@@ -367,6 +417,10 @@ pub mod pallet {
         HashesGcThresholdInsufficient,
         /// The chain cannot be closed
         ChainCannotBeClosed,
+        /// the proof blockhash is not equ in stroage
+        BlockHashNotEqu,
+        /// receipts hash had processed
+        ReceiptsHashHadProcessed,
     }
 
     #[pallet::hooks]
@@ -600,6 +654,64 @@ pub mod pallet {
             Self::deposit_event(Event::UpdateTrustedSigner { trusted_signer });
 
             Ok(().into())
+        }
+
+        /// submitting proof that a receipt has been included in a block
+        #[pallet::weight({6})]
+        #[pallet::call_index(6)]
+        pub fn submit_proof(
+            origin: OriginFor<T>,
+            typed_chain_id: TypedChainId,
+            event_proof: EventProof,
+        ) -> DispatchResult {
+            let validator = ensure_signed(origin)?;
+
+            let finalized_execution_header_hash =
+                FinalizedExecutionBlocks::<T>::get(typed_chain_id, event_proof.block.number)
+                    .ok_or(Error::<T>::HeaderHashDoesNotExist)?;
+
+            ensure!(
+                event_proof.block_hash
+                    == types::H256::new(finalized_execution_header_hash.0.into()),
+                Error::<T>::BlockHashNotEqu,
+            );
+
+            let treasury = Self::account_id();
+
+            // If the receipt proof has already been processed
+            if <ProcessedReceiptsHash<T>>::contains_key(
+                typed_chain_id,
+                event_proof.transaction_receipt_hash.clone(),
+            ) {
+                let _success = T::Currency::transfer(
+                    &validator,
+                    &treasury,
+                    ValidatorProofDeposit::<T>::get(),
+                    AllowDeath,
+                );
+            } else {
+                let _success = T::Currency::transfer(
+                    &treasury,
+                    &validator,
+                    ProofReward::<T>::get(),
+                    AllowDeath,
+                );
+                debug_assert!(_success.is_ok());
+
+                if verify_proof(event_proof) {
+                    ProcessedReceipts::<T>::insert(
+                        typed_chain_id,
+                        event_proof.block.number,
+                        event_proof.transaction_receipt_hash,
+                    );
+                    ProcessedReceiptsHash::<T>::insert(
+                        typed_chain_id,
+                        event_proof.transaction_receipt_hash,
+                    );
+                }
+            }
+
+            Ok(())
         }
     }
 }
@@ -980,20 +1092,26 @@ impl<T: Config> Pallet<T> {
         T::PalletId::get().into_account_truncating()
     }
 
-    pub fn verify_proof(
-        event_proof: EventProof,
-    ) -> Result<bool, Error<T>> {
+    pub fn verify_proof(event_proof: EventProof) -> bool {
         //1 verifying its cryptographic integrity
         //2 checking the receipt includes a LOG emitted by a contract address we are watching.
-        if 
-            event_proof.validate().is_ok()
-            // 		&&
-            // is_contract_address_in_bloom(event_proof.transaction_receipt.bloom, ContractAddress::get())
+        if event_proof.validate().is_ok()
+            && is_contract_address_in_log(
+                event_proof.transaction_receipt,
+                ContractAddress::<T>::get(),
+            )
         {
-            return Ok(true);
+            return true;
         }
 
-        Ok(false)
+        false
+    }
+
+    pub fn is_contract_address_in_log(
+        transaction_receipt: TransactionReceipt,
+        address: H160,
+    ) -> bool {
+        false
     }
 }
 
