@@ -8,9 +8,9 @@ CREATE TABLE IF NOT EXISTS blocks (
 CREATE INDEX IF NOT EXISTS blocks_block_hash_idx ON blocks (block_hash);
 
 CREATE TABLE IF NOT EXISTS latest_block (
-    block_type INTEGER NOT NULL UNIQUE,
-    block_height INTEGER NOT NULL UNIQUE,
-    block_hash TEXT NOT NULL UNIQUE,
+    block_type INTEGER NOT NULL,
+    block_height INTEGER NOT NULL,
+    block_hash TEXT NOT NULL,
     PRIMARY KEY (block_type)
 );
 
