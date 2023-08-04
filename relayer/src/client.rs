@@ -258,7 +258,7 @@ fn parse_block(execution_block: Block<ethers::types::H256>) -> Result<BlockHeade
         timestamp: execution_block.timestamp.as_u64(),
         mix_hash: H256(execution_block.mix_hash.ok_or_else(err)?.0),
         base_fee_per_gas: Some(execution_block.base_fee_per_gas.ok_or_else(err)?.as_u64()),
-        extra_data: execution_block.extra_data.0,
+        extra_data: execution_block.extra_data.0.to_vec(),
 
         // Defaults
         ommers_hash: H256(execution_block.uncles_hash.0),
