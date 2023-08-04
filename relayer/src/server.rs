@@ -1,5 +1,5 @@
 use ethers::{abi::AbiEncode, types::H256};
-use eyre::{Report, Result};
+use eyre::Result;
 use salvo::prelude::*;
 use serde::Deserialize;
 use serde_json::json;
@@ -21,11 +21,11 @@ async fn root(req: &mut Request, dep: &mut Depot) -> eyre::Result<String> {
     let root_req = req
         .parse_body::<RootReq>()
         .await
-        .map_err(|_| Report::msg("Could not parse RootReq"))?;
-    let db = dep.obtain::<DB>().ok_or(Report::msg("Could not get DB"))?;
+        .map_err(|_| eyre::eyre!("Could not parse RootReq"))?;
+    let db = dep.obtain::<DB>().ok_or(eyre::eyre!("Could not get DB"))?;
     let receipts = db
-        .select_receipts_by_block_hash(root_req.block_hash)
-        .map_err(|_| Report::msg("Could not get receipts"))?;
+        .select_receipts_by_block_hash(types::H256(root_req.block_hash.0))
+        .map_err(|_| eyre::eyre!("Could not get receipts"))?;
     let hashes = receipts
         .iter()
         .flat_map(|receipt| receipt.logs.iter().flat_map(|log| log.transaction_hash))

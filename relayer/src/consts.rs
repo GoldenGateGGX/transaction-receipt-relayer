@@ -1,0 +1,1 @@
+pub const BLOCK_AMOUNT_TO_STORE: u64 = 1000;

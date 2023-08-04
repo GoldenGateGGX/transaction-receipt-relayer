@@ -1,15 +1,18 @@
-use eyre::Result;
 use std::sync::{atomic::AtomicBool, Arc};
+
+use clap::Parser;
+use client::Client;
+use eyre::Result;
 use tokio::fs;
 
 mod client;
 mod config;
+pub(crate) mod consts;
 mod db;
 mod merkle;
 mod server;
 
-use client::start_client;
-use config::Config;
+use config::{Config, WatchAddress};
 use db::DB;
 use server::start_server;
 
@@ -17,7 +20,7 @@ use server::start_server;
 async fn main() -> Result<()> {
     env_logger::init();
 
-    let config = envy::from_env::<Config>()?;
+    let config = Config::parse();
     let term = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&term))?;
 
@@ -35,8 +38,11 @@ async fn main() -> Result<()> {
         log::info!("server was stopped, reason: {:?}", res);
     });
 
+    let watch_addresses = WatchAddress::decode_config(&config.watch_dog_config)?;
+    let mut client = Client::new(config.clone(), db.clone(), term, watch_addresses)?;
+
     tokio::spawn(async move {
-        let res = start_client(config, db.clone(), term).await;
+        let res = client.start().await;
         log::info!("client was stopped, reason: {:?}", res);
     })
     .await

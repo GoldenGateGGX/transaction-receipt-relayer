@@ -1,12 +1,25 @@
 use alloy_rlp::{Encodable, RlpEncodableWrapper};
 use keccak_hash::keccak;
 
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, RlpEncodableWrapper, PartialEq, Clone)]
 pub struct H256(pub [u8; 32]);
 
+impl H256 {
+    pub fn zero() -> Self {
+        Self([0u8; 32])
+    }
+
+    pub fn from_slice(slice: &[u8]) -> Self {
+        let mut bytes = [0u8; 32];
+        bytes[..slice.len()].copy_from_slice(slice);
+        Self(bytes)
+    }
+}
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, RlpEncodableWrapper, PartialEq, Clone)]
 pub struct H64(pub [u8; 8]);
-
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, PartialEq, Clone)]
 pub struct U256(pub [u8; 32]);
 
@@ -28,7 +41,7 @@ impl From<u64> for U256 {
         Self(bytes)
     }
 }
-
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, RlpEncodableWrapper, PartialEq, Clone)]
 pub struct H160(pub [u8; 20]);
 
