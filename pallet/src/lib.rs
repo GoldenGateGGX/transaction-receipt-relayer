@@ -689,9 +689,9 @@ pub mod pallet {
                 FinalizedExecutionBlocks::<T>::get(typed_chain_id, event_proof.block.number)
                     .ok_or(Error::<T>::HeaderHashDoesNotExist)?;
 
+            let block_hash: H256 = event_proof.block_hash.0[..].into();
             ensure!(
-                event_proof.block_hash
-                    == types::H256::new(finalized_execution_header_hash.0.into()),
+                block_hash == finalized_execution_header_hash,
                 Error::<T>::BlockHashNotEqu,
             );
 
