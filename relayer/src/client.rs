@@ -139,14 +139,6 @@ impl Client {
         blocks_to_process.push((parse_block(block)?, H256(finalized_block.hash.0)));
 
         let mut repeat = 0;
-        let repeat_cycle = |repeat_counter| {
-            const RETRIES: u64 = 10;
-            if repeat_counter < RETRIES {
-                Ok(repeat_counter + 1)
-            } else {
-                Err(eyre::eyre!("Multiple retries happened"))
-            }
-        };
 
         while current_block != latest_fetched_block {
             // Fetch block by parent hash using web3 interface
@@ -156,8 +148,7 @@ impl Client {
             } else {
                 log::warn!(target: TARGET,"Failed to get block by hash, retrying in 5 seconds");
                 log::warn!(target: TARGET, "Block number: {}", current_block);
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                repeat = repeat_cycle(repeat)?;
+                repeat = repeat_cycle(repeat).await?;
                 continue;
             };
             let tmp = execution_block.parent_hash;
@@ -172,8 +163,7 @@ impl Client {
             } else {
                 log::warn!(target: TARGET,"Failed to parse block, retrying in 5 seconds");
                 log::warn!(target: TARGET, "Block number: {}", current_block);
-                repeat = repeat_cycle(repeat)?;
-                tokio::time::sleep(Duration::from_secs(5)).await;
+                repeat = repeat_cycle(repeat).await?;
             }
         }
 
@@ -259,6 +249,17 @@ fn parse_block(execution_block: Block<ethers::types::H256>) -> Result<BlockHeade
     };
 
     Ok(block_header)
+}
+
+async fn repeat_cycle(repeat_counter: u64) -> Result<u64> {
+    const RETRIES: u64 = 10;
+    if repeat_counter < RETRIES {
+        tokio::time::sleep(Duration::from_secs(5)).await;
+        Ok(repeat_counter + 1)
+    } else {
+        log::error!(target: "relayer::client::repeat_cycle","Multiple retries happened. Exiting.");
+        Err(eyre::eyre!("Multiple retries happened"))
+    }
 }
 
 fn prepare_config(config: &Config) -> HeliosConfig {
