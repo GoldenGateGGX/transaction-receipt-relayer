@@ -1,8 +1,8 @@
-use alloy_rlp::Encodable;
-
 use crate::H160;
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, PartialEq, Clone)]
+use alloy_rlp::Encodable;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Bloom(ethbloom::Bloom);
 impl Bloom {
     pub fn new(bytes: [u8; 256]) -> Self {
