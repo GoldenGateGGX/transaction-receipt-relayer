@@ -3,7 +3,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use ethers::{abi::AbiDecode, abi::AbiEncode};
 use eyre::Result;
 use rusqlite::Connection;
 use types::{BlockHeader, H256};
@@ -45,13 +44,11 @@ impl DB {
         let conn = self.conn.lock().expect("acquire mutex");
         let mut stmt =
             conn.prepare("SELECT block_hash FROM blocks ORDER BY block_height DESC LIMIT 1;")?;
-        let block_hash_iter = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        let block_hash_iter = stmt.query_map([], |row| row.get::<_, [u8; 32]>(0))?;
 
         Ok(block_hash_iter
             .flatten()
-            .flat_map(|hash| {
-                Ok::<H256, eyre::Report>(H256(ethers::types::H256::decode_hex(hash)?.0))
-            })
+            .flat_map(|hash| Ok::<H256, eyre::Report>(H256(hash)))
             .collect::<Vec<_>>()
             .first()
             .cloned())
@@ -70,7 +67,7 @@ impl DB {
             "INSERT INTO blocks(block_height, block_hash, block_header, is_processed) values (?1, ?2, ?3, ?4)",
             (
                 block_number,
-                block_hash.0.encode_hex(),
+                block_hash.0,
                 serde_json::to_string(&block_header)?,
                 is_processed,
             ),
@@ -84,10 +81,9 @@ impl DB {
         let conn = self.conn.lock().expect("acquire mutex");
         let mut stmt =
             conn.prepare("SELECT block_header FROM blocks WHERE block_hash = :block_hash")?;
-        let raw_blocks_iter = stmt
-            .query_map(&[(":block_hash", &block_hash.0.encode_hex())], |row| {
-                row.get::<_, String>(0)
-            })?;
+        let raw_blocks_iter = stmt.query_map(&[(":block_hash", &block_hash.0)], |row| {
+            row.get::<_, String>(0)
+        })?;
 
         Ok(raw_blocks_iter
             .flatten()
