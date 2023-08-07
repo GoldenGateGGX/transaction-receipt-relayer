@@ -90,7 +90,6 @@ use frame_support::{
     PalletId,
 };
 pub use pallet::*;
-use serde::{Deserialize, Deserializer};
 use sp_std::{convert::TryInto, prelude::*};
 use tree_hash::TreeHash;
 use types::{EventProof, TransactionReceipt};
@@ -99,7 +98,6 @@ use webb_proposals::TypedChainId;
 use bitvec::prelude::{BitVec, Lsb0};
 
 use frame_support::{sp_runtime::traits::AccountIdConversion, traits::Currency};
-use hex_literal::hex;
 
 type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -156,6 +154,8 @@ pub mod pallet {
         type Currency: Currency<Self::AccountId>;
 
         type StoragePricePerByte: Get<BalanceOf<Self>>;
+
+        type PrivilegedOrigin: EnsureOrigin<Self::RuntimeOrigin>;
     }
 
     #[pallet::genesis_config]
@@ -365,7 +365,7 @@ pub mod pallet {
         },
         SubmitProcessedReceipts {
             typed_chain_id: TypedChainId,
-            block_height: u64,
+            block_number: u64,
             receipt_hash: H256,
         },
     }
@@ -673,69 +673,98 @@ pub mod pallet {
             origin: OriginFor<T>,
             typed_chain_id: TypedChainId,
             event_proof: Vec<u8>,
-        ) -> DispatchResult {
+        ) -> DispatchResultWithPostInfo {
             let validator = ensure_signed(origin)?;
 
             // Create a str slice from the body.
             let event_proof_str =
                 sp_std::str::from_utf8(&event_proof).map_err(|_| Error::<T>::ConverToStringFail)?;
 
-            // let event_proof: EventProof = serde_json::from_str(&event_proof_str).map_err(|e| {
-            //     log::error!("get_automation_time_last_event ParseError error: {:?}", e);
-            //     Error::<T>::DeserializeFail
-            // })?;
-
             let event_proof: EventProof = serde_json::from_str(&event_proof_str).map_err(|e| {
-                //log::error!("get_automation_time_last_event ParseError error: {:?}", e);
+                frame_support::log::error!("event_proof_str ParseError error: {:?}", e);
                 Error::<T>::DeserializeFail
             })?;
 
-            // let finalized_execution_header_hash =
-            //     FinalizedExecutionBlocks::<T>::get(typed_chain_id, event_proof.block.number)
-            //         .ok_or(Error::<T>::HeaderHashDoesNotExist)?;
+            let finalized_execution_header_hash =
+                FinalizedExecutionBlocks::<T>::get(typed_chain_id, event_proof.block.number)
+                    .ok_or(Error::<T>::HeaderHashDoesNotExist)?;
 
-            // ensure!(
-            //     event_proof.block_hash == finalized_execution_header_hash.0.into(),
-            //     Error::<T>::BlockHashNotEqu,
-            // );
+            ensure!(
+                event_proof.block_hash
+                    == types::H256::new(finalized_execution_header_hash.0.into()),
+                Error::<T>::BlockHashNotEqu,
+            );
 
-            // let treasury = Self::account_id();
+            let treasury = Self::account_id();
 
-            // // If the receipt proof has already been processed
-            // if <ProcessedReceiptsHash<T>>::contains_key(
-            //     typed_chain_id,
-            //     event_proof.transaction_receipt_hash.clone(),
-            // ) {
-            //     let _success = T::Currency::transfer(
-            //         &validator,
-            //         &treasury,
-            //         ValidatorProofDeposit::<T>::get(),
-            //         AllowDeath,
-            //     );
-            // } else {
-            //     let _success = T::Currency::transfer(
-            //         &treasury,
-            //         &validator,
-            //         ProofReward::<T>::get(),
-            //         AllowDeath,
-            //     );
-            //     debug_assert!(_success.is_ok());
+            let transaction_receipt_hash: H256 = event_proof.transaction_receipt_hash.0[..].into();
 
-            //     if Self::verify_proof(event_proof) {
-            //         ProcessedReceipts::<T>::insert(
-            //             typed_chain_id,
-            //             event_proof.block.number,
-            //             event_proof.transaction_receipt_hash,
-            //         );
-            //         ProcessedReceiptsHash::<T>::insert(
-            //             typed_chain_id,
-            //             event_proof.transaction_receipt_hash,
-            //             (),
-            //         );
-            //     }
-            // }
+            // If the receipt proof has already been processed
+            if <ProcessedReceiptsHash<T>>::contains_key(typed_chain_id, transaction_receipt_hash) {
+                let _success = T::Currency::transfer(
+                    &validator,
+                    &treasury,
+                    ValidatorProofDeposit::<T>::get(),
+                    AllowDeath,
+                );
+            } else {
+                let _success = T::Currency::transfer(
+                    &treasury,
+                    &validator,
+                    ProofReward::<T>::get(),
+                    AllowDeath,
+                );
+                debug_assert!(_success.is_ok());
 
-            Ok(())
+                let block_number = event_proof.block.number;
+                if Self::verify_proof(event_proof) {
+                    ProcessedReceipts::<T>::insert(
+                        (typed_chain_id, block_number, transaction_receipt_hash),
+                        (),
+                    );
+                    ProcessedReceiptsHash::<T>::insert(
+                        typed_chain_id,
+                        transaction_receipt_hash,
+                        (),
+                    );
+
+                    Self::deposit_event(Event::SubmitProcessedReceipts {
+                        typed_chain_id,
+                        block_number,
+                        receipt_hash: transaction_receipt_hash,
+                    });
+                }
+            }
+
+            Ok(().into())
+        }
+
+        /// update watching address
+        #[pallet::weight({7})]
+        #[pallet::call_index(7)]
+        pub fn update_watching_address(
+            origin: OriginFor<T>,
+            address: H160,
+        ) -> DispatchResultWithPostInfo {
+            T::PrivilegedOrigin::ensure_origin(origin)?;
+
+            ContractAddress::<T>::put(address);
+            Ok(().into())
+        }
+
+        /// update ValidatorProofDeposit and ProofReward
+        #[pallet::weight({8})]
+        #[pallet::call_index(8)]
+        pub fn update_proof_fee(
+            origin: OriginFor<T>,
+            validator_proof_deposit: BalanceOf<T>,
+            proof_reward: BalanceOf<T>,
+        ) -> DispatchResultWithPostInfo {
+            T::PrivilegedOrigin::ensure_origin(origin)?;
+
+            ValidatorProofDeposit::<T>::put(validator_proof_deposit);
+            ProofReward::<T>::put(proof_reward);
+            Ok(().into())
         }
     }
 }
@@ -1139,7 +1168,7 @@ impl<T: Config> Pallet<T> {
             .receipt
             .logs
             .into_iter()
-            .position(|x| x == address);
+            .position(|x| x.address == types::H160::new(address.0.into()));
 
         return index_of_log_address.is_some();
     }
