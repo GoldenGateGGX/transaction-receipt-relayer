@@ -1,4 +1,4 @@
-use alloy_rlp::{length_of_length, BufMut, Bytes, Encodable, EMPTY_LIST_CODE, EMPTY_STRING_CODE};
+use alloy_rlp::{length_of_length, BufMut, Encodable, EMPTY_LIST_CODE, EMPTY_STRING_CODE};
 
 use crate::{encode, Bloom, H160, H256, H64, U256};
 
@@ -71,7 +71,7 @@ pub struct BlockHeader {
     pub excess_blob_gas: Option<u64>,
     /// An arbitrary byte array containing data relevant to this block. This must be 32 bytes or
     /// fewer; formally Hx.
-    pub extra_data: Bytes,
+    pub extra_data: Vec<u8>,
 }
 
 impl BlockHeader {
@@ -89,7 +89,7 @@ impl BlockHeader {
         length += U256::from(self.gas_limit).length();
         length += U256::from(self.gas_used).length();
         length += self.timestamp.length();
-        length += self.extra_data.length();
+        length += self.extra_data.as_slice().length();
         length += self.mix_hash.length();
         length += H64(self.nonce.to_be_bytes()).length();
 
@@ -151,7 +151,7 @@ impl Encodable for BlockHeader {
             U256::from(self.gas_limit),
             U256::from(self.gas_used),
             self.timestamp,
-            self.extra_data,
+            self.extra_data.as_slice(),
             self.mix_hash,
             H64(self.nonce.to_be_bytes())
         );
@@ -204,7 +204,6 @@ impl Encodable for BlockHeader {
 
 #[cfg(test)]
 mod tests {
-    use alloy_rlp::Bytes;
     use hex_literal::hex;
 
     use crate::{BlockHeader, Bloom, H160, H256, U256};
@@ -227,7 +226,7 @@ mod tests {
             gas_limit: 0x016345785d8a0000_u64,
             gas_used: 0x015534_u64,
             timestamp: 0x079e,
-            extra_data: Bytes::from_static(&hex!("42")),
+            extra_data: hex_literal::hex!("42").to_vec(),
             mix_hash: H256(hex!("0000000000000000000000000000000000000000000000000000000000000000")),
             nonce: 0,
             base_fee_per_gas: Some(0x036b_u64),
@@ -259,7 +258,7 @@ mod tests {
             gas_limit: 0x1c9c380,
             gas_used: 0xec8823,
             timestamp: 0x64c8dcf7,
-            extra_data: Bytes::from_static(&hex!("6265617665726275696c642e6f7267")),
+            extra_data: hex_literal::hex!("6265617665726275696c642e6f7267").to_vec(),
             mix_hash: H256(hex!("b3941446d0aa46c87a1117565c922e00e4f4111c602a2583d9a7d25521b0f932")),
             nonce: 0,
             base_fee_per_gas: Some(0x65a3cb387),
