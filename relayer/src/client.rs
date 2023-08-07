@@ -146,8 +146,7 @@ impl Client {
             let execution_block = if let Ok(Some(execution_block)) = execution_block {
                 execution_block
             } else {
-                log::warn!(target: TARGET,"Failed to get block by hash, retrying in 5 seconds");
-                log::warn!(target: TARGET, "Block number: {}", current_block);
+                log::warn!(target: TARGET, "Failed to get block by hash.\nBlock number: {current_block}");
                 repeat = repeat_cycle(repeat).await?;
                 continue;
             };
@@ -161,8 +160,7 @@ impl Client {
                 // reset repeat as we had a success.
                 repeat = 0;
             } else {
-                log::warn!(target: TARGET,"Failed to parse block, retrying in 5 seconds");
-                log::warn!(target: TARGET, "Block number: {}", current_block);
+                log::warn!(target: TARGET, "Failed to parse block.\nBlock number: {current_block}");
                 repeat = repeat_cycle(repeat).await?;
             }
         }
@@ -254,6 +252,7 @@ fn parse_block(execution_block: Block<ethers::types::H256>) -> Result<BlockHeade
 async fn repeat_cycle(repeat_counter: u64) -> Result<u64> {
     const RETRIES: u64 = 10;
     if repeat_counter < RETRIES {
+        log::warn!(target: "relayer::client::repeat_cycle","Sleeping for 5 seconds");
         tokio::time::sleep(Duration::from_secs(5)).await;
         Ok(repeat_counter + 1)
     } else {
