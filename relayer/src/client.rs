@@ -24,7 +24,7 @@ use types::{BlockHeader, Bloom, H160, H256, U256};
 use crate::{
     config::{Config, WatchAddress},
     consts::BLOCK_AMOUNT_TO_STORE,
-    db::{BlockType, DB},
+    db::DB,
 };
 
 pub struct Client {
@@ -67,14 +67,12 @@ impl Client {
         Ok(())
     }
 
-    /// Tries to get finalized block from Helios and updates
-    /// latest finalized block in DB every 5 seconds.
+    /// Tries to get finalized block from Helios and start fetching if any updates are available.
     async fn finalization_loop(&mut self) -> Result<()> {
         const TARGET: &str = "relayer::client::finalization_loop";
 
-        let mut latest_finalized_block =
-            self.db.select_latest_block_height(BlockType::Finalized)?;
         let mut duration = tokio::time::interval(Duration::from_secs(5));
+        let mut latest_fetched_block = self.db.select_latest_fetched_block_height()?;
 
         loop {
             exit_if_term(self.term.clone());
@@ -90,32 +88,23 @@ impl Client {
                 continue;
             };
 
-            let latest_processed_block =
-                self.db.select_latest_block_height(BlockType::Processed)?;
-            if Some(finalized_block.number) == latest_finalized_block
-                && Some(finalized_block.number) == latest_processed_block
-            {
+            if Some(finalized_block.number) == latest_fetched_block {
                 log::info!(target: TARGET,"No new finalized blocks, retrying in {} seconds", duration.period().as_secs());
                 continue;
             }
-            log::info!(target: TARGET,"New finalized block: {}", finalized_block.number);
+            log::info!(target: TARGET,"New blocks to fetch. Latest finalized: {}, Latest processed: {latest_fetched_block:?}", finalized_block.number );
 
-            if let Err(e) = self.db.insert_or_update_finalized_block_info(
-                finalized_block.number,
-                H256(finalized_block.hash.0),
-            ) {
-                log::error!(target: TARGET,"Failed to update latest finalized block info: {}", e);
-                continue;
-            }
-            latest_finalized_block = Some(finalized_block.number);
             if let Err(e) = self
-                .collect_blocks_after_finality_update(finalized_block)
+                .collect_blocks_after_finality_update(finalized_block, latest_fetched_block)
                 .await
             {
                 log::error!(target: TARGET,"Failed to process finality update: {}", e);
             } else {
                 log::info!(target: TARGET,"Processed finality update");
             };
+
+            // Update latest fetched block after fetching. This is needed to avoid querying db on every iteration.
+            latest_fetched_block = self.db.select_latest_fetched_block_height()?;
         }
     }
 
@@ -124,21 +113,20 @@ impl Client {
     async fn collect_blocks_after_finality_update(
         &mut self,
         finalized_block: ExecutionBlock,
+        latest_fetched_block: Option<u64>,
     ) -> Result<()> {
         const TARGET: &str = "relayer::client::collect_blocks_after_finality_update";
 
         log::info!(target: TARGET,"Processing finality update");
-        let latest_processed_block = self
-            .db
-            .select_latest_block_height(BlockType::Processed)?
-            .unwrap_or(finalized_block.number - BLOCK_AMOUNT_TO_STORE);
+        let latest_fetched_block =
+            latest_fetched_block.unwrap_or(finalized_block.number - BLOCK_AMOUNT_TO_STORE);
 
-        log::info!(target: TARGET,"Latest processed block: {}", latest_processed_block);
+        log::info!(target: TARGET,"Latest fetched block: {}", latest_fetched_block);
 
         // Now we have fetch missing blocks using previous block hash until we hit latest processed block.
         // If it's first run, we have to backtrack for BLOCK_AMOUNT_TO_STORE blocks.
         let mut blocks_to_process =
-            Vec::with_capacity((finalized_block.number - latest_processed_block) as usize);
+            Vec::with_capacity((finalized_block.number - latest_fetched_block) as usize);
 
         let mut current_block = finalized_block.number - 1;
         let mut prev_block_hash = finalized_block.parent_hash;
@@ -160,7 +148,7 @@ impl Client {
             }
         };
 
-        while current_block != latest_processed_block {
+        while current_block != latest_fetched_block {
             // Fetch block by parent hash using web3 interface
             let execution_block = self.block_rpc.get_block(prev_block_hash).await;
             let execution_block = if let Ok(Some(execution_block)) = execution_block {
@@ -206,7 +194,7 @@ impl Client {
         // Load latest processed block hash from the database.
         let mut processed_block_hash = self
             .db
-            .select_latest_block_hash(BlockType::Processed)?
+            .select_latest_fetched_block_hash()?
             .unwrap_or_else(|| blocks.last().unwrap().0.parent_hash.clone());
         for (block_header, block_hash) in blocks.into_iter().rev() {
             // First initial check that it's in order. And that the parent block hash is expected.
