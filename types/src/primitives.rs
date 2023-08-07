@@ -1,8 +1,8 @@
 use alloy_rlp::{Encodable, RlpEncodableWrapper};
 use keccak_hash::keccak;
+use serde::{Deserialize, Serialize};
 
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone)]
+#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone, Serialize, Deserialize)]
 pub struct H256(pub [u8; 32]);
 
 impl H256 {
@@ -16,11 +16,11 @@ impl H256 {
         Self(bytes)
     }
 }
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone)]
+
+#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone, Serialize, Deserialize)]
 pub struct H64(pub [u8; 8]);
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, PartialEq, Clone)]
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct U256(pub [u8; 32]);
 
 impl Encodable for U256 {
@@ -41,9 +41,15 @@ impl From<u64> for U256 {
         Self(bytes)
     }
 }
-#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone)]
+
+#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone, Serialize, Deserialize)]
 pub struct H160(pub [u8; 20]);
+
+impl H160 {
+    pub fn new(data: [u8; 20]) -> H160 {
+        H160(data)
+    }
+}
 
 impl H256 {
     pub fn hash<T>(x: T) -> Self

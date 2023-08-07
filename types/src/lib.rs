@@ -1,5 +1,5 @@
 use alloy_rlp::RlpEncodable;
-
+use serde::{Deserialize, Serialize};
 mod tx_type;
 pub use tx_type::TxType;
 
@@ -19,7 +19,7 @@ pub trait KeccakHashable {
     fn keccak_hash(&self) -> H256;
 }
 
-// #[derive(Debug, RlpEncodable, RlpDecodable, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct EventProof {
     /// Block corresponding to a [stored block hash][1] in Webb's `pallet-eth2-light-client`.
     /// The hash of this structure is computed using its [rlp][2] representation. In particular, this is the 12th field of `execution_payload`,
@@ -93,7 +93,7 @@ impl EventProof {
 /// [1]: https://ethereum.org/en/developers/docs/blocks/#block-anatomy
 /// [2]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/receipt.rs#L57-L62
 
-#[derive(Debug, RlpEncodable, PartialEq)]
+#[derive(Debug, RlpEncodable, PartialEq, Serialize, Deserialize)]
 pub struct TransactionReceipt {
     /// Bloom filter build from logs.
     pub bloom: Bloom,
@@ -105,7 +105,7 @@ pub struct TransactionReceipt {
 /// [`reth_primitives::Receipt`][1].
 ///
 /// [1]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/receipt.rs#L14-L31
-#[derive(Debug, RlpEncodable, PartialEq)]
+#[derive(Debug, RlpEncodable, PartialEq, Serialize, Deserialize)]
 pub struct Receipt {
     /// Receipt type.
     pub tx_type: TxType,
@@ -119,7 +119,7 @@ pub struct Receipt {
     pub logs: Vec<Log>,
 }
 
-#[derive(Debug, RlpEncodable, PartialEq)]
+#[derive(Debug, RlpEncodable, PartialEq, Serialize, Deserialize)]
 pub struct Log {
     /// Contract that emitted this log.
     pub address: H160,
@@ -134,6 +134,7 @@ pub struct Log {
 /// transaction receipts.
 ///
 /// [1]: https://ethereum.org/se/developers/docs/data-structures-and-encoding/patricia-merkle-trie/
+#[derive(Debug, Serialize, Deserialize)]
 pub enum ReceiptMerkleProofNode {
     ExtensionNode {
         prefix: Vec<u8>,
@@ -154,6 +155,7 @@ pub enum ReceiptMerkleProofNode {
 /// from the leaf node.
 ///
 /// [1]: https://ethereum.org/se/developers/docs/data-structures-and-encoding/patricia-merkle-trie/
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ReceiptMerkleProof {
     pub proof: Vec<ReceiptMerkleProofNode>,
 }

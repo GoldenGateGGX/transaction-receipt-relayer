@@ -1,10 +1,11 @@
 use alloy_rlp::Encodable;
 use bytes::BufMut;
+use serde::{Deserialize, Serialize};
 
 /// Transaction Type enum; adapted from [`reth_primitives::TxType`][1].
 ///
 /// [1]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/transaction/tx_type.rs#L22-L32
-#[derive(Default, Debug, PartialEq, Clone, Copy)]
+#[derive(Default, Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub enum TxType {
     /// Legacy transaction pre EIP-2929
     #[default]

@@ -15,7 +15,7 @@ bytes.workspace = true
 keccak-hash.workspace = true
 ethbloom.workspace = true
 # Optional deps 
-serde = { workspace = true, optional = true }
+serde = { workspace = true }
 serde-big-array = { workspace = true, optional = true }
 
 [dev-dependencies]
