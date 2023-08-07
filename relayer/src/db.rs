@@ -153,6 +153,9 @@ mod tests {
         any::<u64>().prop_filter("Sqlite has only i64", |e| *e < i64::MAX as u64)
     }
 
+    // TODO: Unfortunately, proptest doesn't work with long tuples, so I had to split it into two.
+    // Think more for a better solution.
+    #[allow(clippy::type_complexity)]
     pub fn block_header_new(
         (
             (
