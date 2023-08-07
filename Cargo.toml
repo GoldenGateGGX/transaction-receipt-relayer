@@ -40,7 +40,6 @@ serde_json = "1.0.97"
 sha3 = "0.10.8"
 signal-hook = "0.3.15"
 tiny-keccak = { version = "2.0", features = ["keccak"], default-features = false }
-types = { path = "./types" }
 tokio = "1.28.2"
 proptest = "1.0.0"
 test-strategy = "0.3.0"

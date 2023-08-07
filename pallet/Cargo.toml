@@ -10,6 +10,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 serde = { workspace = true, optional = true }
+serde_json.workspace = true
 parity-scale-codec.workspace = true
 scale-info.workspace = true
 webb-proposals.workspace = true
@@ -40,7 +41,6 @@ hex.workspace = true
 [dev-dependencies]
 anyhow.workspace = true
 lazy_static.workspace = true
-serde_json.workspace = true
 eth2-pallet-init.workspace = true
 async-trait.workspace = true
 
