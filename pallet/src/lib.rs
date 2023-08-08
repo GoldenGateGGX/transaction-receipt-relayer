@@ -330,12 +330,12 @@ pub mod pallet {
     /// the contract address we watching
     #[pallet::storage]
     #[pallet::getter(fn contract_address)]
-    pub(crate) type ContractAddress<T: Config> = StorageValue<_, H160, ValueQuery>;
+    pub(crate) type ContractAddress<T: Config> = StorageValue<_, H160, OptionQuery>;
 
     /// pay validator proof deposit
     #[pallet::storage]
-    #[pallet::getter(fn validator_proof_deposit)]
-    pub(crate) type ValidatorProofDeposit<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+    #[pallet::getter(fn proof_deposit)]
+    pub(crate) type ProofDeposit<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
     /// reward for Proof of Submission
     #[pallet::storage]
@@ -367,6 +367,13 @@ pub mod pallet {
             typed_chain_id: TypedChainId,
             block_number: u64,
             receipt_hash: H256,
+        },
+        UpdateContractAddress {
+            address: H160,
+        },
+        UpdateProofFee {
+            proof_deposit: BalanceOf<T>,
+            proof_reward: BalanceOf<T>,
         },
     }
 
@@ -423,14 +430,14 @@ pub mod pallet {
         HashesGcThresholdInsufficient,
         /// The chain cannot be closed
         ChainCannotBeClosed,
-        /// the proof blockhash is not equ in stroage
-        BlockHashNotEqu,
         /// receipts hash had processed
         ReceiptsHashHadProcessed,
         /// event proof to string fail
         ConverToStringFail,
         /// deserialize string fail
         DeserializeFail,
+        /// verify proof fail
+        VerifyProofFail,
     }
 
     #[pallet::hooks]
@@ -680,10 +687,8 @@ pub mod pallet {
             let event_proof_str =
                 sp_std::str::from_utf8(&event_proof).map_err(|_| Error::<T>::ConverToStringFail)?;
 
-            let event_proof: EventProof = serde_json::from_str(&event_proof_str).map_err(|e| {
-                frame_support::log::error!("event_proof_str ParseError error: {:?}", e);
-                Error::<T>::DeserializeFail
-            })?;
+            let event_proof: EventProof =
+                serde_json::from_str(&event_proof_str).map_err(|_| Error::<T>::DeserializeFail)?;
 
             let finalized_execution_header_hash =
                 FinalizedExecutionBlocks::<T>::get(typed_chain_id, event_proof.block.number)
@@ -692,7 +697,7 @@ pub mod pallet {
             let block_hash: H256 = event_proof.block_hash.0[..].into();
             ensure!(
                 block_hash == finalized_execution_header_hash,
-                Error::<T>::BlockHashNotEqu,
+                Error::<T>::BlockHashesDoNotMatch,
             );
 
             let treasury = Self::account_id();
@@ -704,7 +709,7 @@ pub mod pallet {
                 let _success = T::Currency::transfer(
                     &validator,
                     &treasury,
-                    ValidatorProofDeposit::<T>::get(),
+                    ProofDeposit::<T>::get(),
                     AllowDeath,
                 );
             } else {
@@ -716,23 +721,30 @@ pub mod pallet {
                 );
                 debug_assert!(_success.is_ok());
 
-                let block_number = event_proof.block.number;
-                if Self::verify_proof(event_proof) {
-                    ProcessedReceipts::<T>::insert(
-                        (typed_chain_id, block_number, transaction_receipt_hash),
-                        (),
-                    );
-                    ProcessedReceiptsHash::<T>::insert(
-                        typed_chain_id,
-                        transaction_receipt_hash,
-                        (),
-                    );
+                //1 verifying its cryptographic integrity
+                //2 checking the receipt includes a LOG emitted by a contract address we are watching.
+                ensure!(event_proof.validate().is_ok(), Error::<T>::VerifyProofFail,);
 
-                    Self::deposit_event(Event::SubmitProcessedReceipts {
-                        typed_chain_id,
-                        block_number,
-                        receipt_hash: transaction_receipt_hash,
-                    });
+                let block_number = event_proof.block.number;
+
+                if let Some(address) = ContractAddress::<T>::get() {
+                    if Self::is_contract_address_in_log(event_proof.transaction_receipt, address) {
+                        ProcessedReceipts::<T>::insert(
+                            (typed_chain_id, block_number, transaction_receipt_hash),
+                            (),
+                        );
+                        ProcessedReceiptsHash::<T>::insert(
+                            typed_chain_id,
+                            transaction_receipt_hash,
+                            (),
+                        );
+
+                        Self::deposit_event(Event::SubmitProcessedReceipts {
+                            typed_chain_id,
+                            block_number,
+                            receipt_hash: transaction_receipt_hash,
+                        });
+                    }
                 }
             }
 
@@ -749,21 +761,29 @@ pub mod pallet {
             T::PrivilegedOrigin::ensure_origin(origin)?;
 
             ContractAddress::<T>::put(address);
+            Self::deposit_event(Event::UpdateContractAddress { address });
+
             Ok(().into())
         }
 
-        /// update ValidatorProofDeposit and ProofReward
+        /// update ProofDeposit and ProofReward
         #[pallet::weight({8})]
         #[pallet::call_index(8)]
         pub fn update_proof_fee(
             origin: OriginFor<T>,
-            validator_proof_deposit: BalanceOf<T>,
+            proof_deposit: BalanceOf<T>,
             proof_reward: BalanceOf<T>,
         ) -> DispatchResultWithPostInfo {
             T::PrivilegedOrigin::ensure_origin(origin)?;
 
-            ValidatorProofDeposit::<T>::put(validator_proof_deposit);
+            ProofDeposit::<T>::put(proof_deposit);
             ProofReward::<T>::put(proof_reward);
+
+            Self::deposit_event(Event::UpdateProofFee {
+                proof_deposit,
+                proof_reward,
+            });
+
             Ok(().into())
         }
     }
@@ -1143,21 +1163,6 @@ impl<T: Config> Pallet<T> {
 
     pub fn account_id() -> T::AccountId {
         T::PalletId::get().into_account_truncating()
-    }
-
-    pub fn verify_proof(event_proof: EventProof) -> bool {
-        //1 verifying its cryptographic integrity
-        //2 checking the receipt includes a LOG emitted by a contract address we are watching.
-        if event_proof.validate().is_ok()
-            && Self::is_contract_address_in_log(
-                event_proof.transaction_receipt,
-                ContractAddress::<T>::get(),
-            )
-        {
-            return true;
-        }
-
-        false
     }
 
     pub fn is_contract_address_in_log(

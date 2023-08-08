@@ -4,6 +4,7 @@ use crate as pallet_eth2_light_client;
 use consensus::network_config::{Network, NetworkConfig};
 use frame_support::{parameter_types, sp_io, traits::GenesisBuild};
 use frame_system as system;
+use frame_system::EnsureRoot;
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
@@ -94,6 +95,7 @@ impl pallet_eth2_light_client::Config for Test {
     type StoragePricePerByte = StoragePricePerByte;
     type PalletId = Eth2ClientPalletId;
     type Currency = Balances;
+    type PrivilegedOrigin = EnsureRoot<AccountId>;
 }
 
 // Build genesis storage according to the mock runtime.

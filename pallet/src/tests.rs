@@ -1,9 +1,11 @@
 use crate::{
     mock::{Eth2Client, RuntimeOrigin},
     test_utils::*,
+    ContractAddress, EventProof, ProofDeposit, ProofReward,
 };
 
 use bitvec::{bitarr, order::Lsb0};
+use eth_types::H160;
 use eth_types::{eth2::LightClientUpdate, pallet::InitInput, BlockHeader, H256, U256};
 use frame_support::{assert_err, assert_ok};
 use hex::FromHex;
@@ -503,6 +505,220 @@ mod generic_tests {
                 ),
                 Error::<Test>::SyncCommitteeUpdateNotPresent
             );
+        });
+    }
+
+    #[test]
+    pub fn test_submit_proof_deserialize_fail() {
+        new_test_ext().execute_with(|| {
+            assert_err!(
+                Eth2Client::submit_proof(RuntimeOrigin::signed(ALICE), MAINNET_CHAIN, vec![1]),
+                Error::<Test>::DeserializeFail
+            );
+        });
+    }
+
+    #[test]
+    pub fn test_submit_proof_header_hash_do_not_exist() {
+        new_test_ext().execute_with(|| {
+            let proof = EventProof {
+                block: types::BlockHeader {
+                    parent_hash: types::H256::zero(),
+                    ommers_hash: types::H256::zero(),
+                    beneficiary: types::H160::new([0u8; 20]),
+                    state_root: types::H256::zero(),
+                    transactions_root: types::H256::zero(),
+                    receipts_root: types::H256::zero(),
+                    withdrawals_root: None,
+                    logs_bloom: types::Bloom::new([0; 256]),
+                    difficulty: 0.into(),
+                    number: 0,
+                    gas_limit: 0,
+                    gas_used: 0,
+                    timestamp: 0,
+                    mix_hash: types::H256::zero(),
+                    nonce: 0,
+                    base_fee_per_gas: None,
+                    blob_gas_used: None,
+                    excess_blob_gas: None,
+                    extra_data: vec![0],
+                },
+                block_hash: types::H256::zero(),
+                transaction_receipt: types::TransactionReceipt {
+                    bloom: types::Bloom::new([0; 256]),
+                    receipt: types::Receipt {
+                        tx_type: types::TxType::Legacy,
+                        success: false,
+                        cumulative_gas_used: 0,
+                        logs: vec![],
+                    },
+                },
+                transaction_receipt_hash: types::H256::zero(),
+                merkle_proof_of_receipt: types::ReceiptMerkleProof { proof: vec![] },
+            };
+            let serialized_proof = serde_json::to_string(&proof).unwrap();
+
+            assert_err!(
+                Eth2Client::submit_proof(
+                    RuntimeOrigin::signed(ALICE),
+                    GOERLI_CHAIN,
+                    serialized_proof.into()
+                ),
+                Error::<Test>::HeaderHashDoesNotExist
+            );
+        });
+    }
+
+    #[test]
+    pub fn test_submit_proof_block_hash_do_not_match() {
+        new_test_ext().execute_with(|| {
+            let (headers, _updates, _init_input) = get_test_context(None);
+
+            let proof = EventProof {
+                block: types::BlockHeader {
+                    parent_hash: types::H256::zero(),
+                    ommers_hash: types::H256::zero(),
+                    beneficiary: types::H160::new([0u8; 20]),
+                    state_root: types::H256::zero(),
+                    transactions_root: types::H256::zero(),
+                    receipts_root: types::H256::zero(),
+                    withdrawals_root: None,
+                    logs_bloom: types::Bloom::new([0; 256]),
+                    difficulty: 0.into(),
+                    number: headers[0][0].number,
+                    gas_limit: 0,
+                    gas_used: 0,
+                    timestamp: 0,
+                    mix_hash: types::H256::zero(),
+                    nonce: 0,
+                    base_fee_per_gas: None,
+                    blob_gas_used: None,
+                    excess_blob_gas: None,
+                    extra_data: vec![0],
+                },
+                block_hash: types::H256::zero(),
+                transaction_receipt: types::TransactionReceipt {
+                    bloom: types::Bloom::new([0; 256]),
+                    receipt: types::Receipt {
+                        tx_type: types::TxType::Legacy,
+                        success: false,
+                        cumulative_gas_used: 0,
+                        logs: vec![],
+                    },
+                },
+                transaction_receipt_hash: types::H256::zero(),
+                merkle_proof_of_receipt: types::ReceiptMerkleProof { proof: vec![] },
+            };
+            let serialized_proof = serde_json::to_string(&proof).unwrap();
+
+            assert_err!(
+                Eth2Client::submit_proof(
+                    RuntimeOrigin::signed(ALICE),
+                    GOERLI_CHAIN,
+                    serialized_proof.into()
+                ),
+                Error::<Test>::BlockHashesDoNotMatch
+            );
+        });
+    }
+
+    #[test]
+    pub fn test_submit_proof_processed_receipts_hash_do_not_contains_key_verify_proof_fail() {
+        new_test_ext().execute_with(|| {
+            let (headers, _updates, _init_input) = get_test_context(Some(InitOptions {
+                validate_updates: true,
+                verify_bls_signatures: true,
+                hashes_gc_threshold: 7100,
+                trusted_signer: Some([2u8; 32]),
+            }));
+
+            let proof = EventProof {
+                block: types::BlockHeader {
+                    parent_hash: types::H256::zero(),
+                    ommers_hash: types::H256::zero(),
+                    beneficiary: types::H160::new([0u8; 20]),
+                    state_root: types::H256::zero(),
+                    transactions_root: types::H256::zero(),
+                    receipts_root: types::H256::zero(),
+                    withdrawals_root: None,
+                    logs_bloom: types::Bloom::new([0; 256]),
+                    difficulty: 0.into(),
+                    number: headers[0][0].number,
+                    gas_limit: 0,
+                    gas_used: 0,
+                    timestamp: 0,
+                    mix_hash: types::H256::zero(),
+                    nonce: 0,
+                    base_fee_per_gas: None,
+                    blob_gas_used: None,
+                    excess_blob_gas: None,
+                    extra_data: vec![0],
+                },
+                block_hash: types::H256(headers[0][0].calculate_hash().0.into()),
+                transaction_receipt: types::TransactionReceipt {
+                    bloom: types::Bloom::new([0; 256]),
+                    receipt: types::Receipt {
+                        tx_type: types::TxType::Legacy,
+                        success: false,
+                        cumulative_gas_used: 0,
+                        logs: vec![],
+                    },
+                },
+                transaction_receipt_hash: types::H256::zero(),
+                merkle_proof_of_receipt: types::ReceiptMerkleProof { proof: vec![] },
+            };
+            let serialized_proof = serde_json::to_string(&proof).unwrap();
+
+            assert_err!(
+                Eth2Client::submit_proof(
+                    RuntimeOrigin::signed(ALICE),
+                    GOERLI_CHAIN,
+                    serialized_proof.into()
+                ),
+                Error::<Test>::VerifyProofFail
+            );
+        });
+    }
+
+    #[test]
+    pub fn test_submit_proof_processed_receipts_hash_do_not_contains_key_verify_proof_success() {
+        new_test_ext().execute_with(|| {
+            //todo
+        });
+    }
+
+    #[test]
+    pub fn test_submit_proof_processed_receipts_hash_contains_key() {
+        new_test_ext().execute_with(|| {
+            //todo
+        });
+    }
+
+    #[test]
+    pub fn test_update_watching_address() {
+        new_test_ext().execute_with(|| {
+            assert_eq!(ContractAddress::<Test>::get(), None);
+
+            let address: H160 = [1u8; 20].into();
+            assert_ok!(Eth2Client::update_watching_address(
+                RuntimeOrigin::root(),
+                address
+            ));
+
+            assert_eq!(ContractAddress::<Test>::get(), Some(address));
+        });
+    }
+
+    #[test]
+    pub fn update_proof_fee() {
+        new_test_ext().execute_with(|| {
+            assert_eq!(ProofDeposit::<Test>::get(), Default::default());
+            assert_eq!(ProofReward::<Test>::get(), Default::default());
+
+            assert_ok!(Eth2Client::update_proof_fee(RuntimeOrigin::root(), 1, 2));
+
+            assert_eq!(ProofDeposit::<Test>::get(), 1);
+            assert_eq!(ProofReward::<Test>::get(), 2);
         });
     }
 }
