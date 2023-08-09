@@ -683,7 +683,114 @@ mod generic_tests {
     #[test]
     pub fn test_submit_proof_processed_receipts_hash_do_not_contains_key_verify_proof_success() {
         new_test_ext().execute_with(|| {
+            assert_ok!(Eth2Client::update_proof_fee(RuntimeOrigin::root(), 1, 2));
+
+            let address: H160 = hex::decode("20790e28316c429a2c0411e7f14caf6b053a77ae").unwrap().into();
+            assert_ok!(Eth2Client::update_watching_address(
+                RuntimeOrigin::root(),
+                address
+            ));
+
+            let (headers, _updates, _init_input) = get_test_context(Some(InitOptions {
+                validate_updates: true,
+                verify_bls_signatures: true,
+                hashes_gc_threshold: 7100,
+                trusted_signer: Some([2u8; 32]),
+            }));
+
+            let header: BlockHeader = headers[0][0];
+
+            let proof = EventProof {
+                block: types::BlockHeader {//https://goerli.etherscan.io/block/8652100
+                    parent_hash: types::H256(header.parent_hash.0.into()),
+                    ommers_hash: types::H256(header.uncles_hash.0.into()), //todo, is it uncles_hash in eth-types?? //or ommers_hash: EMPTY_LIST_HASH pub const EMPTY_LIST_HASH: H256 = H256(hex!("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"));
+                    beneficiary: types::H160::new(header.author),
+                    state_root: types::H256(header.state_root.0.into()),
+                    transactions_root: types::H256(header.transactions_root.0.into()),
+                    receipts_root: types::H256(header.receipts_root.0.into()),
+                    withdrawals_root: Some(types::H256(header.withdrawals_root.0.into())),
+                    logs_bloom: types::Bloom::new(header.log_bloom),
+                    difficulty: header.difficulty,
+                    number: header.number,
+                    gas_limit: header.gas_limit,
+                    gas_used: header.gas_used,
+                    timestamp: header.timestamp,
+                    mix_hash: types::H256(header.mix_hash.0.into()),
+                    nonce: header.nonce,
+                    base_fee_per_gas: Some(header.base_fee_per_gas),
+                    blob_gas_used: None, //todo,  not found in eth-types, can we set None
+                    excess_blob_gas: None, //todo,  not found, can we set None
+                    extra_data: header.extra_data,
+                },
+                block_hash: types::H256(header.calculate_hash().0.into()),
+                transaction_receipt: types::TransactionReceipt { //https://goerli.etherscan.io/tx/0xe2ae376a9429b47e436dfc2eeccc49bff94fa562131fb53aaf6b8b56a3c41ae5
+                    bloom: types::Bloom::new([0; 256]),
+                    receipt: types::Receipt {
+                        tx_type: types::TxType::EIP1559,
+                        success: true,
+                        cumulative_gas_used: 196913,
+                        logs: vec![types::Log {
+                            address: types::H160::new(hex::decode("9dc234c57c41f563bafc49fea24549d09eb83938").unwrap()),
+                            topics: vec![types::H256(hex::decode("24c9bb2620686dbe734e777d7b61fc8c088e12fb07e265a6bb90f9f9e0896012").unwrap())],
+                            data: vec![
+                                hex::decode("0000000000000000000000007eba7f5b306c6dd5333aaac0e2d4ab4c3a83c203" ).unwrap(),
+                                hex::decode("833ad75d5c089ed54f85dc681b1739573baf02ec43408cf6b1e692034facd08c" ).unwrap(),
+                                hex::decode("000000000000000000000000000000000000000000000000000000000000058b" ).unwrap(),
+                                hex::decode("000000000000000000000000000000000000000000000000000000000000058c" ).unwrap(),
+                                hex::decode("0000000000000000000000000000000000000000000000000000000000840542" ).unwrap(),
+                                hex::decode("00000000000000000000000000000000000000000000000000000001b3f6cfc0" ).unwrap(),
+                                hex::decode("00000000000000000000000020790e28316c429a2c0411e7f14caf6b053a77ae" ).unwrap(),
+                                hex::decode("0000000000000000000000000000000000000000000000000000000000000000" ).unwrap(),
+                                hex::decode("0000000000000000000000000000000000000000000000000000000000000001" ).unwrap(),
+                                hex::decode("0000000000000000000000000000000000000000000000000000000064100a60" ).unwrap(),
+                                hex::decode("0000000000000000000000000000000000000000000000000000000000000000" ).unwrap(),
+                                hex::decode("0000000000000000000000000000000000000000000000000000000000000180" ).unwrap(),
+                                hex::decode("00000000000000000000000000000000000000000000000000000000000000a4" ).unwrap(),
+                                hex::decode("111b6e8d630a19217e9731fb1a64020b07b482de29c3f250891723d49f599710" ).unwrap(),
+                                hex::decode("0555beb359b1f55a2e152f4d903d1addd3fb5fba0b0ba9707cbcb1dcd6efcc8f" ).unwrap(),
+                                hex::decode("000040000000000200000002000d688c00000000000000000000000000000000" ).unwrap(),
+                                hex::decode("00000000298c3f359cf306ad8b187e28c4905a3d8d49fbdab90bfb21b59cd0fe" ).unwrap(),
+                                hex::decode("0db602931f85ae4c487123d667a3c0c6ba9bc158fe9ae6be5984601b651d8259" ).unwrap(),
+                                hex::decode("0ade755800000000000000000000000000000000000000000000000000000000" ).unwrap(),
+                            ],
+                        },
+                        types::Log {
+                            address: types::H160::new(hex::decode("20790e28316c429a2c0411e7f14caf6b053a77ae").unwrap()),
+                            topics: vec![types::H256(hex::decode("a99ca06ac3461399088feac88ec48dc5a47d61c3b6839eab20146f2c4ee53584").unwrap())],
+                            data: vec![hex::decode("000000000000000000000000000000000000000000000000000000000000058c0000000000000000000000000000000000000000000000000000000000061d720000000000000000000000000000000000000000000000000000000000061da5").unwrap()],
+                        },
+
+                        ],
+                    },
+                },
+                transaction_receipt_hash: types::H256(hex::decode("e2ae376a9429b47e436dfc2eeccc49bff94fa562131fb53aaf6b8b56a3c41ae5").unwrap()),// todo how to get transaction_receipt_hash, is it transaction_hash
+                merkle_proof_of_receipt: types::ReceiptMerkleProof { proof: vec![types:ReceiptMerkleProofNode::ExtensionNode{
+                    prefix: vec![],//todo how can i get ExtensionNode or BranchNode info
+                }] },
+            };
+            let serialized_proof = serde_json::to_string(&proof).unwrap();
+
+            assert_ok!(
+                Eth2Client::submit_proof(
+                    RuntimeOrigin::signed(ALICE),
+                    GOERLI_CHAIN,
+                    serialized_proof.into()
+                )
+            );
+
+            let transaction_receipt_hash = serialized_proof.transaction_receipt_hash;
+            let block_number = serialized_proof.block.number;
+            assert_eq!(ProcessedReceipts::<Test>::get((GOERLI_CHAIN, block_number, transaction_receipt_hash)), Some(()));
+            assert_eq!(ProcessedReceiptsHash::<Test>::get(GOERLI_CHAIN, transaction_receipt_hash), Some(()));
+        });
+    }
+
+    #[test]
+    pub fn test_submit_proof_processed_receipts_hash_do_not_contains_key_but_not_in_watch_contract()
+    {
+        new_test_ext().execute_with(|| {
             //todo
+            assert_ok!(Eth2Client::update_proof_fee(RuntimeOrigin::root(), 1, 2));
         });
     }
 
@@ -691,6 +798,7 @@ mod generic_tests {
     pub fn test_submit_proof_processed_receipts_hash_contains_key() {
         new_test_ext().execute_with(|| {
             //todo
+            assert_ok!(Eth2Client::update_proof_fee(RuntimeOrigin::root(), 1, 2));
         });
     }
 
