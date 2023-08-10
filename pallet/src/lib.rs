@@ -430,8 +430,6 @@ pub mod pallet {
         HashesGcThresholdInsufficient,
         /// The chain cannot be closed
         ChainCannotBeClosed,
-        /// receipts hash had processed
-        ReceiptsHashHadProcessed,
         /// event proof to string fail
         ConverToStringFail,
         /// deserialize string fail
