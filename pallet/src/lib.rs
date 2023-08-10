@@ -303,7 +303,7 @@ pub mod pallet {
     /// [1]: https://github.com/webb-tools/pallet-eth2-light-client/blob/4d8a20ad325795a2d166fcd2a6118db3037581d3/pallet/src/lib.rs#L218-L219
     #[pallet::storage]
     #[pallet::getter(fn processed_receipts)]
-    type ProcessedReceipts<T: Config> = StorageNMap<
+    pub(crate) type ProcessedReceipts<T: Config> = StorageNMap<
         _,
         (
             NMapKey<Blake2_128Concat, TypedChainId>, // ChainList Id https://chainlist.org/
@@ -317,7 +317,7 @@ pub mod pallet {
     /// querying that the inclusion-proof for a receipt has been processed or not
     #[pallet::storage]
     #[pallet::getter(fn processed_receipts_hash)]
-    type ProcessedReceiptsHash<T: Config> = StorageDoubleMap<
+    pub(crate) type ProcessedReceiptsHash<T: Config> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         TypedChainId, // ChainList Id https://chainlist.org/
