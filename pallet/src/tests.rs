@@ -715,15 +715,15 @@ mod generic_tests {
     //                 state_root: types::H256(header.state_root.0.into()),
     //                 transactions_root: types::H256(header.transactions_root.0.into()),
     //                 receipts_root: types::H256(header.receipts_root.0.into()),
-    //                 withdrawals_root: Some(types::H256(header.withdrawals_root.0.into())),
+    //                 withdrawals_root: Some(types::H256(header.withdrawals_root.unwrap_or_default().0.into())),
     //                 logs_bloom: types::Bloom::new(header.log_bloom.0.into()),
-    //                 difficulty: header.difficulty,
+    //                 difficulty: types::U256(header.difficulty.0.into()),
     //                 number: header.number,
     //                 gas_limit: header.gas_limit,
     //                 gas_used: header.gas_used,
     //                 timestamp: header.timestamp,
     //                 mix_hash: types::H256(header.mix_hash.0.into()),
-    //                 nonce: header.nonce,
+    //                 nonce: u64::from_be_bytes(header.nonce.0.into()),
     //                 base_fee_per_gas: header.base_fee_per_gas,
     //                 blob_gas_used: None, //todo,  not found in eth-types, can we set None
     //                 excess_blob_gas: None, //todo,  not found in eth-types, can we set None
