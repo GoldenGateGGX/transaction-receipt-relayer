@@ -108,6 +108,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
             (AccountId32::new([1u8; 32]), 10u128.pow(18)),
             (AccountId32::new([2u8; 32]), 20u128.pow(18)),
             (AccountId32::new([3u8; 32]), 30u128.pow(18)),
+            (Eth2Client::account_id(), 40u128.pow(18)),
         ],
     }
     .assimilate_storage(&mut storage);
