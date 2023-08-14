@@ -30,3 +30,6 @@ types = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 hex-literal.workspace = true
+proptest.workspace = true
+test-strategy.workspace = true
+tempdir = "0.3"
