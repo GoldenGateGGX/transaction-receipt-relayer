@@ -47,9 +47,6 @@ serde-big-array = "0.5.0"
 ethbloom = { version = "0.13.0", default-features = false }
 toml = "0.7"
 tempdir = "0.3"
-
-types = { path = "types" }
-
 types = { path = "types" }
 
 # Substrate FRAME
