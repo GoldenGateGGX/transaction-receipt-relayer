@@ -1,7 +1,7 @@
+use crate::H256;
 use alloy_rlp::{Encodable, RlpEncodable};
 use bytes::BufMut;
-
-use crate::H256;
+use serde::{Deserialize, Serialize};
 
 use super::transaction_receipt::TransactionReceipt;
 
@@ -10,7 +10,7 @@ use super::transaction_receipt::TransactionReceipt;
 /// transaction receipts.
 ///
 /// [1]: https://ethereum.org/se/developers/docs/data-structures-and-encoding/patricia-merkle-trie/
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum ReceiptMerkleProofNode {
     /// An extension node in the Patricia Merkle Trie.
     ///
@@ -56,23 +56,24 @@ pub enum ReceiptMerkleProofNode {
 /// from the leaf node.
 ///
 /// [1]: https://ethereum.org/se/developers/docs/data-structures-and-encoding/patricia-merkle-trie/
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ReceiptMerkleProof {
     pub proof: Vec<ReceiptMerkleProofNode>,
 }
 
-#[derive(Debug, RlpEncodable)]
+#[derive(Debug, RlpEncodable, Serialize, Deserialize)]
 pub struct ReceiptLeaf {
     pub key: H256,
     pub value: TransactionReceipt,
 }
 
-#[derive(Debug, RlpEncodable)]
+#[derive(Debug, RlpEncodable, Serialize, Deserialize)]
 pub struct ExtensionNode {
     pub prefix: Vec<u8>,
     pub pointer: H256,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BranchNode {
     pub branches: [Option<H256>; 16],
 }
