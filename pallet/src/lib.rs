@@ -686,7 +686,7 @@ pub mod pallet {
                 sp_std::str::from_utf8(&event_proof).map_err(|_| Error::<T>::ConverToStringFail)?;
 
             let event_proof: EventProof =
-                serde_json::from_str(&event_proof_str).map_err(|_| Error::<T>::DeserializeFail)?;
+                serde_json::from_str(event_proof_str).map_err(|_| Error::<T>::DeserializeFail)?;
 
             let finalized_execution_header_hash =
                 FinalizedExecutionBlocks::<T>::get(typed_chain_id, event_proof.block.number)
@@ -1173,7 +1173,7 @@ impl<T: Config> Pallet<T> {
             .into_iter()
             .position(|x| x.address == types::H160::new(address.0.into()));
 
-        return index_of_log_address.is_some();
+        index_of_log_address.is_some()
     }
 }
 
