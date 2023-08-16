@@ -581,6 +581,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cita_trie"
+version = "4.0.0"
+dependencies = [
+ "hasher",
+ "parking_lot 0.12.1",
+ "rlp 0.5.2",
+]
+
+[[package]]
 name = "clap"
 version = "4.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2091,6 +2100,15 @@ checksum = "2c6201b9ff9fd90a5a3bac2e56a830d0caa509576f0e503818ee82c181b3437a"
 dependencies = [
  "ahash",
  "allocator-api2",
+]
+
+[[package]]
+name = "hasher"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbbba678b6567f27ce22870d951f4208e1dc2fef64993bd4521b1d497ef8a3aa"
+dependencies = [
+ "tiny-keccak 2.0.2",
 ]
 
 [[package]]
@@ -5300,7 +5318,9 @@ version = "0.1.0"
 dependencies = [
  "alloy-rlp",
  "bytes",
+ "cita_trie",
  "ethers",
+ "hasher",
  "hex-literal",
  "keccak-hash",
  "proptest",
