@@ -1,7 +1,7 @@
 use alloy_rlp::{Encodable, RlpEncodable};
 use bytes::BufMut;
 
-use crate::H256;
+use crate::{encode, H256};
 
 use super::transaction_receipt::TransactionReceipt;
 
@@ -56,6 +56,7 @@ pub enum ReceiptMerkleProofNode {
 /// from the leaf node.
 ///
 /// [1]: https://ethereum.org/se/developers/docs/data-structures-and-encoding/patricia-merkle-trie/
+#[derive(Debug, PartialEq)]
 pub struct ReceiptMerkleProof {
     pub proof: Vec<ReceiptMerkleProofNode>,
 }
@@ -102,8 +103,7 @@ impl ReceiptMerkleProof {
                         .children
                         .clone()
                         .into_iter()
-                        .map(|node| cita_trie.encode_raw(node))
-                        .map(|data| Some(H256(data[..32].try_into().unwrap())))
+                        .map(|node| Some(H256::hash(cita_trie.encode_raw(node))))
                         .collect::<Vec<_>>()
                         .try_into()
                         .unwrap();
@@ -120,10 +120,33 @@ impl ReceiptMerkleProof {
     }
 }
 
-#[derive(Debug, RlpEncodable)]
+#[derive(Debug, Clone)]
 pub struct ReceiptLeaf {
     pub key: H256,
     pub value: TransactionReceipt,
+}
+
+impl Encodable for ReceiptLeaf {
+    fn encode(&self, result: &mut dyn BufMut) {
+        #[derive(alloy_rlp::RlpEncodable)]
+        struct S<'a> {
+            encoded_path: &'a [u8],
+            value: &'a [u8],
+        }
+        let mut out = vec![];
+        self.value.encode(&mut out);
+
+        let s = S {
+            encoded_path: &self.key.0,
+            value: &out,
+        };
+
+        let mut buff = vec![];
+
+        s.encode(&mut buff);
+
+        rlp_node(&buff, result);
+    }
 }
 
 #[derive(Debug, RlpEncodable)]
@@ -138,18 +161,29 @@ pub struct BranchNode {
 }
 
 impl Encodable for BranchNode {
-    fn encode(&self, buf: &mut dyn BufMut) {
-        // TODO: this is probably not the correct way of encoding branches
-        for branch in self.branches.iter() {
-            match branch {
-                Some(h256) => {
-                    h256.encode(buf);
-                }
-                None => {
-                    [0_u8; 32].encode(buf);
-                }
+    fn encode(&self, result: &mut dyn BufMut) {
+        let mut buf = vec![];
+        let payload_length =
+            self.branches.iter().fold(
+                1usize,
+                |acc, elem| if elem.is_some() { acc + 32 } else { 1 },
+            );
+        let header = alloy_rlp::Header {
+            payload_length,
+            list: true,
+        };
+        header.encode(&mut buf);
+
+        for i in self.branches.iter() {
+            if let Some(hash) = i {
+                buf.put_slice(&hash.0);
+            } else {
+                buf.put_u8(alloy_rlp::EMPTY_STRING_CODE);
             }
         }
+
+        buf.put_u8(alloy_rlp::EMPTY_STRING_CODE);
+        rlp_node(&buf, result);
     }
 
     fn length(&self) -> usize {
@@ -188,37 +222,105 @@ impl ReceiptMerkleProof {
     }
 }
 
+/// Given an RLP encoded node, returns either RLP(node) or RLP(keccak(RLP(node)))
+fn rlp_node(rlp: &[u8], out: &mut dyn BufMut) {
+    if rlp.len() < 32 {
+        println!("Less than 32 bytes, returning RLP(node)");
+        out.put_slice(rlp);
+    } else {
+        println!("More than 32 bytes, returning RLP(keccak(RLP(node)))");
+        out.put_slice(&rlp_hash(H256(keccak_hash::keccak(rlp).0)));
+    }
+}
+
+pub fn rlp_hash(hash: H256) -> Vec<u8> {
+    [
+        [alloy_rlp::EMPTY_STRING_CODE + 32 as u8].as_slice(),
+        hash.0.as_slice(),
+    ]
+    .concat()
+}
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{cell::RefCell, rc::Rc, sync::Arc};
 
-    use cita_trie::{MemoryDB, PatriciaTrie, Trie};
+    use alloy_rlp::Encodable;
+    use cita_trie::{node::LeafNode, MemoryDB, PatriciaTrie, Trie};
     use hasher::HasherKeccak;
 
-    use crate::{Bloom, Receipt, TransactionReceipt};
+    use crate::{Bloom, Receipt, ReceiptMerkleProof, TransactionReceipt, H256};
+
+    use super::ReceiptLeaf;
+
+    #[test]
+    fn encode_leaf() {
+        let value = TransactionReceipt {
+            bloom: Bloom::new([0; 256]),
+            receipt: Receipt {
+                tx_type: crate::TxType::Legacy,
+                success: true,
+                cumulative_gas_used: 1,
+                logs: vec![],
+            },
+        };
+
+        let key = H256::hash(&value);
+
+        let receipt = ReceiptLeaf {
+            key: key.clone(),
+            value: value.clone(),
+        };
+
+        let mut value_buf = vec![];
+        value.encode(&mut value_buf);
+
+        println!("\n\nvalue_buf: {:?}\n\n", value_buf);
+        let node = cita_trie::node::Node::Leaf(Rc::new(RefCell::new(LeafNode {
+            key: cita_trie::nibbles::Nibbles::from_raw(key.0.to_vec(), true),
+            value: value_buf,
+        })));
+
+        let trie = PatriciaTrie::new(Arc::new(MemoryDB::new(true)), Arc::new(HasherKeccak::new()));
+
+        let mut bytes = vec![];
+        receipt.encode(&mut bytes);
+
+        assert_eq!(bytes, trie.encode_node(node));
+    }
+
+    fn trie_root(iter: impl Iterator<Item = (Vec<u8>, Vec<u8>)>) -> H256 {
+        let mut trie =
+            PatriciaTrie::new(Arc::new(MemoryDB::new(true)), Arc::new(HasherKeccak::new()));
+        for (k, v) in iter {
+            trie.insert(k, v).unwrap();
+        }
+        H256(trie.root().unwrap()[..32].try_into().unwrap())
+    }
+
+    fn transaction_to_key_value(transaction: TransactionReceipt) -> (Vec<u8>, Vec<u8>) {
+        let mut vec = vec![];
+        transaction.encode(&mut vec);
+        let hash = keccak_hash::keccak(&vec).0.to_vec();
+        (hash, vec)
+    }
 
     #[test]
     fn test_merkle_proof() {
-        let memdb = Arc::new(MemoryDB::new(true));
-        let transactions = vec![
-            TransactionReceipt {
-                bloom: Bloom::new([0; 256]),
+        let transactions: Vec<TransactionReceipt> = (0..5)
+            .map(|e| TransactionReceipt {
+                bloom: Bloom::new([e; 256]),
                 receipt: Receipt {
                     tx_type: crate::TxType::EIP1559,
                     logs: vec![],
-                    cumulative_gas_used: 0,
+                    cumulative_gas_used: e as u64,
                     success: true,
                 },
-            },
-            TransactionReceipt {
-                bloom: Bloom::new([0; 256]),
-                receipt: Receipt {
-                    tx_type: crate::TxType::EIP1559,
-                    logs: vec![],
-                    cumulative_gas_used: 0,
-                    success: true,
-                },
-            },
-        ];
+            })
+            .collect();
+        let searching_for = transactions[2].clone();
+        let proof = ReceiptMerkleProof::from_transactions(transactions.clone(), 2);
+        let root = trie_root(transactions.into_iter().map(transaction_to_key_value));
+        let restored_root = proof.merkle_root(&searching_for);
+        assert_eq!(root, restored_root);
     }
 }
