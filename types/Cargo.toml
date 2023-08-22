@@ -6,7 +6,7 @@ authors.workspace = true
 repository.workspace = true
 
 [features]
-default = ["merkle-proof"]
+default = ["merkle-proof", "debug"]
 debug = []
 merkle-proof = ["dep:cita_trie", "dep:hasher"]
 std = ["serde/std", "serde-big-array"]
