@@ -62,43 +62,62 @@ pub struct ReceiptMerkleProof {
 
 #[cfg(feature = "merkle-proof")]
 impl ReceiptMerkleProof {
-    fn from_transactions(transactions: Vec<TransactionReceipt>, transaction_to_prove: usize) -> Self {
+    pub fn from_transactions(
+        transactions: Vec<TransactionReceipt>,
+        transaction_to_prove: usize,
+    ) -> Self {
         use cita_trie::Trie;
         use std::sync::Arc;
 
         let hash_and_data = |value: &TransactionReceipt| {
-            let mut vec = vec![];        
+            let mut vec = vec![];
             value.encode(&mut vec);
-            let hash  = keccak_hash::keccak(&vec).0.to_vec();
+            let hash = keccak_hash::keccak(&vec).0.to_vec();
             (hash, vec)
         };
 
-        let item_to_prove = {
-            hash_and_data(transactions.get(transaction_to_prove).unwrap()).0
-        };
-        
-        let mut cita_trie = cita_trie::PatriciaTrie::new(Arc::new(cita_trie::MemoryDB::new(true)),Arc::new(hasher::HasherKeccak::new()));
+        let item_to_prove = { hash_and_data(transactions.get(transaction_to_prove).unwrap()).0 };
+
+        let mut cita_trie = cita_trie::PatriciaTrie::new(
+            Arc::new(cita_trie::MemoryDB::new(true)),
+            Arc::new(hasher::HasherKeccak::new()),
+        );
 
         for transaction in transactions {
             let (hash, data) = hash_and_data(&transaction);
-            cita_trie.insert(hash, data ).unwrap();
+            cita_trie.insert(hash, data).unwrap();
         }
 
-        let proof = cita_trie.get_proof(&item_to_prove).unwrap().into_iter().map(|node | {
-            match node {
-                cita_trie::node::Node::Extension(node) => ReceiptMerkleProofNode::ExtensionNode { prefix: node.borrow().prefix.encode_raw().0 },
+        let proof = cita_trie
+            .get_proof(&item_to_prove)
+            .unwrap()
+            .into_iter()
+            .map(|node| match node {
+                cita_trie::node::Node::Extension(node) => ReceiptMerkleProofNode::ExtensionNode {
+                    prefix: node.borrow().prefix.encode_raw().0,
+                },
                 cita_trie::node::Node::Branch(node) => {
                     let node = node.borrow();
-                    let branches = node.children.clone().into_iter().map(|node| cita_trie.encode_raw(node)).map(|data| Some(H256(data[..32].try_into().unwrap()))).collect::<Vec<_>>().try_into().unwrap();               
-                    ReceiptMerkleProofNode::BranchNode { branches: Box::new(branches), index: 16 }
-                },
-                _ => unreachable!()
-            }
-        }).collect();
+                    let branches = node
+                        .children
+                        .clone()
+                        .into_iter()
+                        .map(|node| cita_trie.encode_raw(node))
+                        .map(|data| Some(H256(data[..32].try_into().unwrap())))
+                        .collect::<Vec<_>>()
+                        .try_into()
+                        .unwrap();
+                    ReceiptMerkleProofNode::BranchNode {
+                        branches: Box::new(branches),
+                        index: 16,
+                    }
+                }
+                _ => unreachable!(),
+            })
+            .collect();
 
         ReceiptMerkleProof { proof }
     }
-
 }
 
 #[derive(Debug, RlpEncodable)]
@@ -166,5 +185,40 @@ impl ReceiptMerkleProof {
             }
         }
         hash
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use cita_trie::{MemoryDB, PatriciaTrie, Trie};
+    use hasher::HasherKeccak;
+
+    use crate::{Bloom, Receipt, TransactionReceipt};
+
+    #[test]
+    fn test_merkle_proof() {
+        let memdb = Arc::new(MemoryDB::new(true));
+        let transactions = vec![
+            TransactionReceipt {
+                bloom: Bloom([0; 256]),
+                receipt: Receipt {
+                    tx_type: crate::TxType::EIP1559,
+                    logs: vec![],
+                    cumulative_gas_used: 0,
+                    success: true,
+                },
+            },
+            TransactionReceipt {
+                bloom: Bloom([0; 256]),
+                receipt: Receipt {
+                    tx_type: crate::TxType::EIP1559,
+                    logs: vec![],
+                    cumulative_gas_used: 0,
+                    success: true,
+                },
+            },
+        ];
     }
 }

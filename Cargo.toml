@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["relayer", "types", "merkle-proofs", "pallet", "storage", "client"]
+members = ["relayer", "types", "pallet", "storage", "client"]
 
 [workspace.package]
 authors = ["Golden Gate"]
@@ -33,7 +33,7 @@ tokio = "1.28.2"
 proptest = "1.0.0"
 test-strategy = "0.3.0"
 
-cita_trie = { path= "../cita-trie" }
+cita_trie = { path = "../cita-trie" }
 hasher = "0.1"
 
 [patch."https://github.com/a16z/helios.git"]

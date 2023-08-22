@@ -2956,10 +2956,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "merkle-proofs"
-version = "0.1.0"
-
-[[package]]
 name = "milagro_bls"
 version = "1.5.0"
 source = "git+https://github.com/Snowfork/milagro_bls#7d1776edb42870b006430ece9741c15811e4c9e3"
