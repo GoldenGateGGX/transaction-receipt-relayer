@@ -202,7 +202,7 @@ mod tests {
         let memdb = Arc::new(MemoryDB::new(true));
         let transactions = vec![
             TransactionReceipt {
-                bloom: Bloom([0; 256]),
+                bloom: Bloom::new([0; 256]),
                 receipt: Receipt {
                     tx_type: crate::TxType::EIP1559,
                     logs: vec![],
@@ -211,7 +211,7 @@ mod tests {
                 },
             },
             TransactionReceipt {
-                bloom: Bloom([0; 256]),
+                bloom: Bloom::new([0; 256]),
                 receipt: Receipt {
                     tx_type: crate::TxType::EIP1559,
                     logs: vec![],

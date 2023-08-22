@@ -129,7 +129,7 @@ mod tests {
                 }],
                 success: false,
             },
-            bloom: Bloom([0; 256]),
+            bloom: Bloom::new([0; 256]),
         };
 
         receipt.encode(&mut data);

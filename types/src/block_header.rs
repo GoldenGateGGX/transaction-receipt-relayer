@@ -1,12 +1,15 @@
-use alloy_rlp::{length_of_length, BufMut, Bytes, Encodable, EMPTY_LIST_CODE, EMPTY_STRING_CODE};
+use alloy_rlp::{length_of_length, BufMut, Encodable, EMPTY_LIST_CODE, EMPTY_STRING_CODE};
 
 use crate::{encode, Bloom, H160, H256, H64, U256};
+use serde::{Deserialize, Serialize};
 
 /// The block structure hashed to generate the `block_hash` field for Ethereum's
 /// [`execution_payload`][1]; adapted from [`reth_primitives::Header`][2].
 ///
 /// [1]: https://ethereum.org/en/developers/docs/blocks/#block-anatomy
 /// [2]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/header.rs#L40-L105
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BlockHeader {
     /// The Keccak 256-bit hash of the parent
     /// block's header, in its entirety; formally Hp.
@@ -68,7 +71,7 @@ pub struct BlockHeader {
     pub excess_blob_gas: Option<u64>,
     /// An arbitrary byte array containing data relevant to this block. This must be 32 bytes or
     /// fewer; formally Hx.
-    pub extra_data: Bytes,
+    pub extra_data: Vec<u8>,
 }
 
 impl BlockHeader {
@@ -86,7 +89,7 @@ impl BlockHeader {
         length += U256::from(self.gas_limit).length();
         length += U256::from(self.gas_used).length();
         length += self.timestamp.length();
-        length += self.extra_data.length();
+        length += self.extra_data.as_slice().length();
         length += self.mix_hash.length();
         length += H64(self.nonce.to_be_bytes()).length();
 
@@ -148,7 +151,7 @@ impl Encodable for BlockHeader {
             U256::from(self.gas_limit),
             U256::from(self.gas_used),
             self.timestamp,
-            self.extra_data,
+            self.extra_data.as_slice(),
             self.mix_hash,
             H64(self.nonce.to_be_bytes())
         );
@@ -201,7 +204,6 @@ impl Encodable for BlockHeader {
 
 #[cfg(test)]
 mod tests {
-    use alloy_rlp::Bytes;
     use hex_literal::hex;
 
     use crate::{BlockHeader, Bloom, H160, H256, U256};
@@ -218,13 +220,13 @@ mod tests {
             state_root: H256(hex!("ec3c94b18b8a1cff7d60f8d258ec723312932928626b4c9355eb4ab3568ec7f7")),
             transactions_root: H256(hex!("50f738580ed699f0469702c7ccc63ed2e51bc034be9479b7bff4e68dee84accf")),
             receipts_root: H256(hex!("29b0562f7140574dd0d50dee8a271b22e1a0a7b78fca58f7c60370d8317ba2a9")),
-            logs_bloom: Bloom(hex!("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")),
+            logs_bloom: Bloom::new(hex!("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")),
             difficulty: U256::from(0x020000),
             number: 0x01_u64,
             gas_limit: 0x016345785d8a0000_u64,
             gas_used: 0x015534_u64,
             timestamp: 0x079e,
-            extra_data: Bytes::from_static(&hex!("42")),
+            extra_data: hex_literal::hex!("42").to_vec(),
             mix_hash: H256(hex!("0000000000000000000000000000000000000000000000000000000000000000")),
             nonce: 0,
             base_fee_per_gas: Some(0x036b_u64),
@@ -250,13 +252,13 @@ mod tests {
             state_root: H256(hex!("3befce142543d32f9a4aa209d76361a9f14e307c9f3b347a01c3c9cf194f8dcc")),
             transactions_root: H256(hex!("921355a0945f1861fbd6581db1df0b4f59a7937aef800db27b2ceb09a2e63e6f")),
             receipts_root: H256(hex!("65c4e84c69c03bf12c42643cf15b55775a4c62bd7d728a3b641f66673b3b51a2")),
-            logs_bloom: Bloom(hex!("a36710b1555713853e7c2974af0c5281a2e00270c6bd6020924118016073a543d1609be18c0e068cd1051f2a8ac5319cde07442f8a83ea135336b6b2c82c22a4ec28c49e48440879c8a7419f732832a28c41248527c48936f82006e790731b41da0174ac0219945b0428d1b401b03c15b1db4242a9d9249696745e1711de3100c88783d206dc1922025446f661262c1e049654d3c53924486ead407804de343aa2ac2ce4de8034502e1954c18083948b0d3a44ea9a2c12ac29f198671a1b425d31360812580ecc538301b3850d3ef60026f4aa43342aab191828694a0891f57866302f08d4672408024786b47c22c542a47cf170af40c8412003a80202c97663")),
+            logs_bloom: Bloom::new(hex!("a36710b1555713853e7c2974af0c5281a2e00270c6bd6020924118016073a543d1609be18c0e068cd1051f2a8ac5319cde07442f8a83ea135336b6b2c82c22a4ec28c49e48440879c8a7419f732832a28c41248527c48936f82006e790731b41da0174ac0219945b0428d1b401b03c15b1db4242a9d9249696745e1711de3100c88783d206dc1922025446f661262c1e049654d3c53924486ead407804de343aa2ac2ce4de8034502e1954c18083948b0d3a44ea9a2c12ac29f198671a1b425d31360812580ecc538301b3850d3ef60026f4aa43342aab191828694a0891f57866302f08d4672408024786b47c22c542a47cf170af40c8412003a80202c97663")),
             difficulty: U256::from(0x0),
             number: 0x10fe785,
             gas_limit: 0x1c9c380,
             gas_used: 0xec8823,
             timestamp: 0x64c8dcf7,
-            extra_data: Bytes::from_static(&hex!("6265617665726275696c642e6f7267")),
+            extra_data: hex_literal::hex!("6265617665726275696c642e6f7267").to_vec(),
             mix_hash: H256(hex!("b3941446d0aa46c87a1117565c922e00e4f4111c602a2583d9a7d25521b0f932")),
             nonce: 0,
             base_fee_per_gas: Some(0x65a3cb387),
