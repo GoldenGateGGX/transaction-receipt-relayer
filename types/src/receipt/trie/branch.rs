@@ -82,6 +82,7 @@ mod tests {
                 children: cita_trie::node::empty_children(),
                 value: None,
             };
+            // Test branch with node filled up to j
             for i in 0..j {
                 let receipt = TransactionReceipt {
                     bloom: Bloom::new([i; 256]),
@@ -100,10 +101,7 @@ mod tests {
                 let mut receipt_encoded = vec![];
                 receipt.encode(&mut receipt_encoded);
 
-                let leaf = ReceiptLeaf {
-                    key: Nibbles::new(vec![i]),
-                    value: receipt,
-                };
+                let leaf = ReceiptLeaf::new(Nibbles::new(vec![i]), receipt);
                 let mut buffer = vec![];
                 leaf.encode(&mut buffer);
                 branch_node.branches[i as usize] = Some(H256(buffer[..32].try_into().unwrap()));

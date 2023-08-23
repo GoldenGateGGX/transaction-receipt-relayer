@@ -1,33 +1,36 @@
 use alloy_rlp::{BufMut, Encodable};
 
-use crate::{encode::rlp_node, receipt::trie::nibble::Nibbles, TransactionReceipt};
+use crate::{encode, receipt::trie::nibble::Nibbles, TransactionReceipt};
 
 #[derive(Debug, Clone)]
 pub struct ReceiptLeaf {
-    pub key: Nibbles,
-    pub value: TransactionReceipt,
+    key: Vec<u8>,
+    value: TransactionReceipt,
+}
+
+impl ReceiptLeaf {
+    pub fn new(key: Nibbles, value: TransactionReceipt) -> Self {
+        Self {
+            key: key.encode_path_leaf(true),
+            value,
+        }
+    }
 }
 
 impl Encodable for ReceiptLeaf {
     fn encode(&self, result: &mut dyn BufMut) {
-        #[derive(alloy_rlp::RlpEncodable)]
-        struct S<'a> {
-            encoded_path: &'a [u8],
-            value: &'a [u8],
-        }
-        let mut out = vec![];
-        self.value.encode(&mut out);
+        let value = alloy_rlp::encode(&self.value);
 
-        let s = S {
-            encoded_path: &self.key.encode_path_leaf(true),
-            value: &out,
+        let header = alloy_rlp::Header {
+            payload_length: self.key.as_slice().length() + value.as_slice().length(),
+            list: true,
         };
 
-        let mut buff = vec![];
+        let mut out = vec![];
+        let out_buf = &mut out;
+        encode!(out_buf, header, self.key.as_slice(), value.as_slice());
 
-        s.encode(&mut buff);
-
-        rlp_node(&buff, result);
+        crate::encode::rlp_node(&out, result);
     }
 }
 
@@ -64,10 +67,10 @@ mod tests {
             let mut receipt_encoded = vec![];
             receipt.encode(&mut receipt_encoded);
 
-            let our_leaf = ReceiptLeaf {
-                key: Nibbles::new(key.clone()),
-                value: receipt,
-            };
+            let our_leaf = ReceiptLeaf::new(
+                Nibbles::new(key.clone()),
+                receipt,
+            );
 
             let mut our_leaf_encoded = vec![];
             our_leaf.encode(&mut our_leaf_encoded);
