@@ -1,9 +1,12 @@
 use alloy_rlp::{Encodable, RlpEncodable};
 use bytes::BufMut;
 
-use crate::{encode, H256};
+use crate::{encode::rlp_node, H256};
 
-use super::transaction_receipt::TransactionReceipt;
+use super::{
+    transaction_receipt::TransactionReceipt,
+    trie::{branch::BranchNode, leaf::ReceiptLeaf, nibble::Nibbles},
+};
 
 /// Nodes of a Merkle proof that a transaction has been included in a block. Corresponds to `branch`
 /// and `extension` nodes for in the [Patricia Merkle Trie][1] used representing included
@@ -120,75 +123,10 @@ impl ReceiptMerkleProof {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ReceiptLeaf {
-    pub key: H256,
-    pub value: TransactionReceipt,
-}
-
-impl Encodable for ReceiptLeaf {
-    fn encode(&self, result: &mut dyn BufMut) {
-        #[derive(alloy_rlp::RlpEncodable)]
-        struct S<'a> {
-            encoded_path: &'a [u8],
-            value: &'a [u8],
-        }
-        let mut out = vec![];
-        self.value.encode(&mut out);
-
-        let s = S {
-            encoded_path: &self.key.0,
-            value: &out,
-        };
-
-        let mut buff = vec![];
-
-        s.encode(&mut buff);
-
-        rlp_node(&buff, result);
-    }
-}
-
 #[derive(Debug, RlpEncodable)]
 pub struct ExtensionNode {
     pub prefix: Vec<u8>,
     pub pointer: H256,
-}
-
-#[derive(Debug)]
-pub struct BranchNode {
-    pub branches: [Option<H256>; 16],
-}
-
-impl Encodable for BranchNode {
-    fn encode(&self, result: &mut dyn BufMut) {
-        let mut buf = vec![];
-        let payload_length =
-            self.branches.iter().fold(
-                1usize,
-                |acc, elem| if elem.is_some() { acc + 32 } else { 1 },
-            );
-        let header = alloy_rlp::Header {
-            payload_length,
-            list: true,
-        };
-        header.encode(&mut buf);
-
-        for i in self.branches.iter() {
-            if let Some(hash) = i {
-                buf.put_slice(&hash.0);
-            } else {
-                buf.put_u8(alloy_rlp::EMPTY_STRING_CODE);
-            }
-        }
-
-        buf.put_u8(alloy_rlp::EMPTY_STRING_CODE);
-        rlp_node(&buf, result);
-    }
-
-    fn length(&self) -> usize {
-        32 * 16
-    }
 }
 
 impl ReceiptMerkleProof {
@@ -200,7 +138,7 @@ impl ReceiptMerkleProof {
         //
         // The final hash is the Merkle root.
         let mut hash = H256::hash(&ReceiptLeaf {
-            key: H256::hash(leaf),
+            key: Nibbles::new(vec![]),
             value: leaf.clone(),
         });
         for node in self.proof.iter() {
@@ -222,71 +160,15 @@ impl ReceiptMerkleProof {
     }
 }
 
-/// Given an RLP encoded node, returns either RLP(node) or RLP(keccak(RLP(node)))
-fn rlp_node(rlp: &[u8], out: &mut dyn BufMut) {
-    if rlp.len() < 32 {
-        println!("Less than 32 bytes, returning RLP(node)");
-        out.put_slice(rlp);
-    } else {
-        println!("More than 32 bytes, returning RLP(keccak(RLP(node)))");
-        out.put_slice(&rlp_hash(H256(keccak_hash::keccak(rlp).0)));
-    }
-}
-
-pub fn rlp_hash(hash: H256) -> Vec<u8> {
-    [
-        [alloy_rlp::EMPTY_STRING_CODE + 32 as u8].as_slice(),
-        hash.0.as_slice(),
-    ]
-    .concat()
-}
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, rc::Rc, sync::Arc};
+    use std::sync::Arc;
 
     use alloy_rlp::Encodable;
-    use cita_trie::{node::LeafNode, MemoryDB, PatriciaTrie, Trie};
+    use cita_trie::{MemoryDB, PatriciaTrie, Trie};
     use hasher::HasherKeccak;
 
     use crate::{Bloom, Receipt, ReceiptMerkleProof, TransactionReceipt, H256};
-
-    use super::ReceiptLeaf;
-
-    #[test]
-    fn encode_leaf() {
-        let value = TransactionReceipt {
-            bloom: Bloom::new([0; 256]),
-            receipt: Receipt {
-                tx_type: crate::TxType::Legacy,
-                success: true,
-                cumulative_gas_used: 1,
-                logs: vec![],
-            },
-        };
-
-        let key = H256::hash(&value);
-
-        let receipt = ReceiptLeaf {
-            key: key.clone(),
-            value: value.clone(),
-        };
-
-        let mut value_buf = vec![];
-        value.encode(&mut value_buf);
-
-        println!("\n\nvalue_buf: {:?}\n\n", value_buf);
-        let node = cita_trie::node::Node::Leaf(Rc::new(RefCell::new(LeafNode {
-            key: cita_trie::nibbles::Nibbles::from_raw(key.0.to_vec(), true),
-            value: value_buf,
-        })));
-
-        let trie = PatriciaTrie::new(Arc::new(MemoryDB::new(true)), Arc::new(HasherKeccak::new()));
-
-        let mut bytes = vec![];
-        receipt.encode(&mut bytes);
-
-        assert_eq!(bytes, trie.encode_node(node));
-    }
 
     fn trie_root(iter: impl Iterator<Item = (Vec<u8>, Vec<u8>)>) -> H256 {
         let mut trie =

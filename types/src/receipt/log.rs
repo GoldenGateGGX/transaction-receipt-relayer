@@ -1,4 +1,4 @@
-use alloy_rlp::{Encodable, RlpEncodable};
+use alloy_rlp::Encodable;
 
 use crate::{encode, H160, H256};
 
