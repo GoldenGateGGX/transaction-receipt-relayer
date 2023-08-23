@@ -2,7 +2,7 @@ use alloy_rlp::{Encodable, RlpEncodableWrapper};
 use keccak_hash::keccak;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone, Serialize, Deserialize, Copy)]
 pub struct H256(pub [u8; 32]);
 
 impl H256 {

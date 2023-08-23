@@ -1,7 +1,6 @@
 use alloy_rlp::{Encodable, RlpEncodable};
-use bytes::BufMut;
 
-use crate::{encode::rlp_node, H256};
+use crate::H256;
 
 use super::{
     transaction_receipt::TransactionReceipt,
@@ -100,20 +99,19 @@ impl ReceiptMerkleProof {
                 cita_trie::node::Node::Extension(node) => ReceiptMerkleProofNode::ExtensionNode {
                     prefix: node.borrow().prefix.encode_raw().0,
                 },
-                cita_trie::node::Node::Branch(node) => {
-                    let node = node.borrow();
-                    let branches = node
-                        .children
-                        .clone()
-                        .into_iter()
-                        .map(|node| Some(H256::hash(cita_trie.encode_raw(node))))
-                        .collect::<Vec<_>>()
-                        .try_into()
-                        .unwrap();
-                    ReceiptMerkleProofNode::BranchNode {
-                        branches: Box::new(branches),
-                        index: 16,
-                    }
+                cita_trie::node::Node::Branch(_node) => {
+                    todo!()
+                    // let node = node.borrow();
+                    // let branches = node
+                    //     .children
+                    //     .clone()
+                    //     .into_iter()
+                    //     .map(|node| Some(H256::hash(cita_trie.encode_raw(node))))
+                    //     .collect::<Vec<_>>();
+                    // ReceiptMerkleProofNode::BranchNode {
+                    //     branches: Box::new(branches),
+                    //     index: 16,
+                    // }
                 }
                 _ => unreachable!(),
             })
