@@ -6,7 +6,7 @@ authors.workspace = true
 repository.workspace = true
 
 [features]
-default = ["merkle-proof", "debug"]
+default = ["merkle-proof"]
 debug = []
 merkle-proof = ["dep:cita_trie", "dep:hasher"]
 std = ["serde/std", "serde-big-array"]
@@ -27,4 +27,3 @@ ethers.workspace = true
 proptest.workspace = true
 test-strategy.workspace = true
 hex-literal.workspace = true
-triehash = "0.8"

@@ -5400,7 +5400,6 @@ dependencies = [
  "serde",
  "serde-big-array",
  "test-strategy",
- "triehash",
 ]
 
 [[package]]

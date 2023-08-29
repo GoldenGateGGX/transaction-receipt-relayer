@@ -43,7 +43,7 @@ pub enum ReceiptMerkleProofNode {
     /// [2]: https://github.com/paradigmxyz/reth/blob/8c70524fc6031dcc268fd771797f35d6229848e7/crates/primitives/src/trie/nodes/branch.rs#L8-L15
     BranchNode {
         branches: Box<[Option<H256>; 16]>,
-        index: usize,
+        index: u8,
     },
 }
 
@@ -60,6 +60,7 @@ pub enum ReceiptMerkleProofNode {
 pub struct ReceiptMerkleProof {
     pub proof: Vec<ReceiptMerkleProofNode>,
     pub size: usize,
+    pub transaction_index: usize,
 }
 
 #[cfg(feature = "merkle-proof")]
@@ -133,7 +134,7 @@ impl ReceiptMerkleProof {
                     let next = node.children[key_slice[0] as usize].clone();
                     proof.push(ReceiptMerkleProofNode::BranchNode {
                         branches: Box::new(branches.try_into().unwrap()),
-                        index: key_slice[0] as usize,
+                        index: key_slice[0],
                     });
                     processing_queue.push(next);
                     key_slice = &key_slice[1..];
@@ -152,6 +153,7 @@ impl ReceiptMerkleProof {
         ReceiptMerkleProof {
             proof,
             size: transaction_len,
+            transaction_index: transaction_to_prove,
         }
     }
 }
@@ -159,14 +161,17 @@ impl ReceiptMerkleProof {
 impl ReceiptMerkleProof {
     /// Given a transaction receipt, compute the Merkle root of the Patricia Merkle Trie using the
     /// rest of the Merkle proof.
-    pub fn merkle_root(&self, leaf: &TransactionReceipt, index: usize) -> H256 {
+    pub fn merkle_root(&self, leaf: &TransactionReceipt) -> H256 {
         // Recovering a Merkle root from a Merkle proof involves computing the hash of the leaf node
         // and the hashes of the rest of the nodes in the proof.
         //
         // The final hash is the Merkle root.
 
         // Full nibble path of the leaf node.
-        let key = Nibbles::new(alloy_rlp::encode(adjust_index_for_rlp(index, self.size)));
+        let key = Nibbles::new(alloy_rlp::encode(adjust_index_for_rlp(
+            self.transaction_index,
+            self.size,
+        )));
         let mut key_slice = key.hex_data.as_slice();
 
         for node in self.proof.iter() {
@@ -193,7 +198,7 @@ impl ReceiptMerkleProof {
                 }
                 ReceiptMerkleProofNode::BranchNode { branches, index } => {
                     let mut branches = *branches.as_ref();
-                    branches[index & 0x0f] = Some(hash);
+                    branches[(index & 0x0f) as usize] = Some(hash);
                     hash = H256::from_slice(&alloy_rlp::encode(&BranchNode { branches }));
                 }
             }
@@ -259,7 +264,7 @@ mod tests {
         let searching_for = transactions[SEARCHIN_INDEX].clone();
         let proof = ReceiptMerkleProof::from_transactions(transactions.clone(), SEARCHIN_INDEX);
 
-        let restored_root = proof.merkle_root(&searching_for, SEARCHIN_INDEX);
+        let restored_root = proof.merkle_root(&searching_for);
 
         let transaction_len = transactions.len();
         let root = trie_root(
