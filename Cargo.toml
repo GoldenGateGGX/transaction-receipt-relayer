@@ -16,8 +16,6 @@ envy = "0.4.2"
 ethers = "2.0.7"
 eyre = "0.6.8"
 helios = { git = "https://github.com/a16z/helios.git", tag = "0.4.1" }
-# Helios doesn't do a pub interface to the node that operates on `payload` level
-helios-client = { package = "client", git = "https://github.com/a16z/helios.git", tag = "0.4.1" }
 hex = "0.4"
 hex-literal = "0.4.1"
 keccak-hash = "0.10.0"
@@ -44,4 +42,3 @@ hasher = "0.1"
 
 [patch."https://github.com/a16z/helios.git"]
 helios = { git = "https://github.com/andor0/helios.git", branch = "max-supported-logs-number-as-environ-variable" }
-helios-client = { package = "client", git = "https://github.com/andor0/helios.git", branch = "max-supported-logs-number-as-environ-variable" }

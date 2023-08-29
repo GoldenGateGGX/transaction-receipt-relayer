@@ -14,11 +14,10 @@ use ethers::{
 };
 use eyre::Result;
 use helios::{
-    client::ClientBuilder,
+    client::{Client as HeliosClient, ClientBuilder, FileDB},
     config::Config as HeliosConfig,
     types::{BlockTag, ExecutionBlock},
 };
-use helios_client::{database::FileDB, Client as HeliosClient};
 use types::{BlockHeader, Bloom, H160, H256, U256};
 
 use crate::{
