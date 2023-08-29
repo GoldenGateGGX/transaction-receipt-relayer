@@ -55,13 +55,13 @@ impl EventProof {
     pub fn validate(&self) -> Result<(), ValidationError> {
         if self.block_hash != H256::hash(&self.block) {
             return Err(ValidationError::IncorrectBodyHash {
-                expected: self.block_hash.clone(),
+                expected: self.block_hash,
                 actual: H256::hash(&self.block),
             });
         }
         if self.transaction_receipt_hash != H256::hash(&self.transaction_receipt) {
             return Err(ValidationError::IncorrectReceiptHash {
-                expected: self.transaction_receipt_hash.clone(),
+                expected: self.transaction_receipt_hash,
                 actual: H256::hash(&self.transaction_receipt),
             });
         }
@@ -71,7 +71,7 @@ impl EventProof {
                 .merkle_root(&self.transaction_receipt)
         {
             return Err(ValidationError::IncorrectReceiptRoot {
-                expected: self.block.receipts_root.clone(),
+                expected: self.block.receipts_root,
                 actual: self
                     .merkle_proof_of_receipt
                     .merkle_root(&self.transaction_receipt),

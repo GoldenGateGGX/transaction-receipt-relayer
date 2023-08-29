@@ -182,7 +182,7 @@ impl Client {
         let mut processed_block_hash = self
             .db
             .select_latest_fetched_block_hash()?
-            .unwrap_or_else(|| blocks.last().unwrap().0.parent_hash.clone());
+            .unwrap_or_else(|| blocks.last().unwrap().0.parent_hash);
         for (block_header, block_hash) in blocks.into_iter().rev() {
             // First initial check that it's in order. And that the parent block hash is expected.
             if processed_block_hash != block_header.parent_hash {
