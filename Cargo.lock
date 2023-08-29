@@ -583,6 +583,7 @@ dependencies = [
 [[package]]
 name = "cita_trie"
 version = "4.0.0"
+source = "git+https://github.com/ggxchain/cita-trie.git?branch=cita-trie-extended-pub#042a0ed072dfc5269ca18d5f5a76d052f93e8b94"
 dependencies = [
  "hasher",
  "parking_lot 0.12.1",
