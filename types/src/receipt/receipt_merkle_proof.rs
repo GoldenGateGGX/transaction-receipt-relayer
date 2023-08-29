@@ -43,10 +43,7 @@ pub enum ReceiptMerkleProofNode {
     ///
     /// [1]: https://ethereum.github.io/yellowpaper/paper.pdf
     /// [2]: https://github.com/paradigmxyz/reth/blob/8c70524fc6031dcc268fd771797f35d6229848e7/crates/primitives/src/trie/nodes/branch.rs#L8-L15
-    BranchNode {
-        branches: Box<[Option<H256>; 16]>,
-        index: u8,
-    },
+    BranchNode { branches: Box<[Option<H256>; 16]> },
 }
 
 /// A Merkle proof that a transaction receipt has been included in a block.
@@ -67,7 +64,7 @@ pub struct ReceiptMerkleProof {
 impl ReceiptMerkleProof {
     pub fn from_transactions(
         transactions: Vec<TransactionReceipt>,
-        transaction_to_prove: usize,
+        transaction_to_prove: u64,
     ) -> Self {
         use cita_trie::Trie;
         use std::sync::Arc;
@@ -78,44 +75,53 @@ impl ReceiptMerkleProof {
             Arc::new(hasher::HasherKeccak::new()),
         );
 
+        let nibble = Nibbles::new(item_to_prove.clone());
+        let mut nibble_slice = nibble.hex_data.as_slice();
+
+        // create trie
         for (i, transaction) in transactions.into_iter().enumerate() {
             let value = alloy_rlp::encode(transaction);
-            cita_trie.insert(alloy_rlp::encode(i), value).unwrap();
+            cita_trie
+                .insert(alloy_rlp::encode(i as u64), value)
+                .unwrap();
         }
 
-        let proof = cita_trie
-            .get_proof(&item_to_prove)
-            .unwrap()
+        let proof = cita_trie.get_proof(&item_to_prove).unwrap();
+        let proof = proof
             .into_iter()
-            .map(|node| match node {
-                cita_trie::node::Node::Extension(node) => {
-                    let node = node.borrow();
-                    let prefix = node.prefix.get_data();
-                    ReceiptMerkleProofNode::ExtensionNode {
-                        prefix: prefix[..prefix.len() - 1].to_vec(),
+            .map(|node| {
+                let result = match &node {
+                    cita_trie::node::Node::Extension(node) => {
+                        let node = node.borrow();
+                        let prefix = node.prefix.get_data();
+                        nibble_slice = &nibble_slice[prefix.len()..];
+                        ReceiptMerkleProofNode::ExtensionNode {
+                            prefix: prefix[..prefix.len() - 1].to_vec(),
+                        }
                     }
-                }
-                cita_trie::node::Node::Branch(node) => {
-                    let node = node.borrow();
-                    let branches = node
-                        .children
-                        .clone()
-                        .into_iter()
-                        .map(|node| {
-                            let encoded_node = cita_trie.encode_node(node);
-                            if encoded_node.len() == 1 {
-                                None
-                            } else {
-                                Some(H256::from_slice(&encoded_node))
-                            }
-                        })
-                        .collect::<Vec<_>>();
-                    ReceiptMerkleProofNode::BranchNode {
-                        branches: Box::new(branches.try_into().unwrap()),
-                        index: 16, // dummy value but we should use it
+                    cita_trie::node::Node::Branch(node) => {
+                        let node = node.borrow();
+                        let branches = node
+                            .children
+                            .clone()
+                            .into_iter()
+                            .map(|node| {
+                                let encoded_node = cita_trie.encode_node(node);
+                                if encoded_node.len() == 1 {
+                                    None
+                                } else {
+                                    Some(H256::from_slice(&encoded_node))
+                                }
+                            })
+                            .collect::<Vec<_>>();
+
+                        ReceiptMerkleProofNode::BranchNode {
+                            branches: Box::new(branches.try_into().unwrap()),
+                        }
                     }
-                }
-                _ => unreachable!(),
+                    _ => unreachable!(),
+                };
+                result
             })
             .collect();
 
@@ -126,21 +132,47 @@ impl ReceiptMerkleProof {
 impl ReceiptMerkleProof {
     /// Given a transaction receipt, compute the Merkle root of the Patricia Merkle Trie using the
     /// rest of the Merkle proof.
-    pub fn merkle_root(&self, leaf: &TransactionReceipt) -> H256 {
+    pub fn merkle_root(&self, leaf: &TransactionReceipt, index: u64) -> H256 {
         // Recovering a Merkle root from a Merkle proof involves computing the hash of the leaf node
         // and the hashes of the rest of the nodes in the proof.
         //
         // The final hash is the Merkle root.
-        let mut hash = H256::hash(&ReceiptLeaf::new(Nibbles::new(vec![]), leaf.clone()));
+
+        // Full nibble path of the leaf node.
+        let key = Nibbles::new(alloy_rlp::encode(index));
+
+        let mut key_slice = key.hex_data.as_slice();
+
         for node in self.proof.iter() {
             match node {
                 ReceiptMerkleProofNode::ExtensionNode { prefix } => {
-                    hash = H256::hash(&ExtensionNode::new(Nibbles::new(prefix.to_vec()), hash));
+                    key_slice = &key_slice[prefix.len()..]
                 }
-                ReceiptMerkleProofNode::BranchNode { index, branches } => {
+                ReceiptMerkleProofNode::BranchNode { .. } => key_slice = &key_slice[1..],
+            }
+        }
+
+        let mut hash = H256::from_slice(&alloy_rlp::encode(&ReceiptLeaf::new(
+            Nibbles::from_hex(key_slice.to_vec()),
+            leaf.clone(),
+        )));
+        let mut key_slice = key.hex_data.as_slice();
+
+        for node in self.proof.iter() {
+            match node {
+                ReceiptMerkleProofNode::ExtensionNode { prefix } => {
+                    key_slice = &key_slice[prefix.len()..];
+                    hash = H256::from_slice(&alloy_rlp::encode(&ExtensionNode::new(
+                        Nibbles::new(prefix.to_vec()),
+                        hash,
+                    )));
+                }
+                ReceiptMerkleProofNode::BranchNode { branches } => {
                     let mut branches = *branches.as_ref();
+                    let index = &key_slice[0];
+                    key_slice = &key_slice[1..];
                     branches[(*index & 0x0f) as usize] = Some(hash);
-                    hash = H256::hash(&BranchNode { branches });
+                    hash = H256::from_slice(&alloy_rlp::encode(&BranchNode { branches }));
                 }
             }
         }
@@ -164,19 +196,21 @@ mod tests {
         for (k, v) in iter {
             trie.insert(k, v).unwrap();
         }
+
         H256(trie.root().unwrap()[..32].try_into().unwrap())
     }
 
-    fn transaction_to_key_value(transaction: TransactionReceipt) -> (Vec<u8>, Vec<u8>) {
+    fn transaction_to_key_value(
+        (index, transaction): (usize, TransactionReceipt),
+    ) -> (Vec<u8>, Vec<u8>) {
         let mut vec = vec![];
         transaction.encode(&mut vec);
-        let hash = keccak_hash::keccak(&vec).0.to_vec();
-        (hash, vec)
+        (alloy_rlp::encode(index as u64), vec)
     }
 
     #[test]
     fn test_merkle_proof() {
-        let transactions: Vec<TransactionReceipt> = (0..5)
+        let transactions: Vec<TransactionReceipt> = (0..100)
             .map(|e| TransactionReceipt {
                 bloom: Bloom::new([e; 256]),
                 receipt: Receipt {
@@ -187,14 +221,18 @@ mod tests {
                 },
             })
             .collect();
-        let searching_for = transactions[2].clone();
-        let proof = ReceiptMerkleProof::from_transactions(transactions.clone(), 2);
+        const SEARCHIN_INDEX: u64 = 0;
+        let searching_for = transactions[SEARCHIN_INDEX as usize].clone();
+        let proof = ReceiptMerkleProof::from_transactions(transactions.clone(), SEARCHIN_INDEX);
 
-        println!("\n\n\n\n\n\n");
-        let restored_root = proof.merkle_root(&searching_for);
-        println!("\n\n\n\n\n\n");
+        let restored_root = proof.merkle_root(&searching_for, SEARCHIN_INDEX);
 
-        let root = trie_root(transactions.into_iter().map(transaction_to_key_value));
+        let root = trie_root(
+            transactions
+                .into_iter()
+                .enumerate()
+                .map(transaction_to_key_value),
+        );
         assert_eq!(root, restored_root);
     }
 }

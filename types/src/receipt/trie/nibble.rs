@@ -1,7 +1,7 @@
 #[derive(Debug, Clone)]
 pub struct Nibbles {
     /// The inner representation of the nibble sequence.
-    hex_data: Vec<u8>,
+    pub hex_data: Vec<u8>,
 }
 
 impl Nibbles {
@@ -12,6 +12,10 @@ impl Nibbles {
             hex_data.push(item % 16);
         }
 
+        Nibbles { hex_data }
+    }
+
+    pub fn from_hex(hex_data: Vec<u8>) -> Self {
         Nibbles { hex_data }
     }
 

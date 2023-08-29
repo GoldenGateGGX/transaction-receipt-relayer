@@ -41,6 +41,8 @@ pub struct EventProof {
     /// A Merkle proof that the transaction receipt has been included in the `receipt_root` field in
     /// the `block`.
     pub merkle_proof_of_receipt: ReceiptMerkleProof,
+
+    pub transaction_index: u64,
 }
 
 /// Error type for validating `EventProofTransaction`s.
@@ -68,13 +70,13 @@ impl EventProof {
         if self.block.receipts_root
             != self
                 .merkle_proof_of_receipt
-                .merkle_root(&self.transaction_receipt)
+                .merkle_root(&self.transaction_receipt, self.transaction_index)
         {
             return Err(ValidationError::IncorrectReceiptRoot {
                 expected: self.block.receipts_root.clone(),
                 actual: self
                     .merkle_proof_of_receipt
-                    .merkle_root(&self.transaction_receipt),
+                    .merkle_root(&self.transaction_receipt, self.transaction_index),
             });
         }
         Ok(())
