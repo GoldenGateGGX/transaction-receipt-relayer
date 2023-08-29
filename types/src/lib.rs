@@ -42,7 +42,7 @@ pub struct EventProof {
     /// the `block`.
     pub merkle_proof_of_receipt: ReceiptMerkleProof,
 
-    pub transaction_index: u64,
+    pub transaction_index: usize,
 }
 
 /// Error type for validating `EventProofTransaction`s.
