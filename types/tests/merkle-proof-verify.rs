@@ -2,19 +2,14 @@ use types::{EventProof, ReceiptMerkleProof, H256};
 
 mod common;
 
-#[test]
-fn block_verification() {
-    let test_block = include_str!("../tests/suits/block_17819525.json");
+fn merkle_proof_test(test_block: &str, test_block_receipts: &str) {
     let (hash, block_header) = common::load_block(test_block);
     let block_hash = H256::hash(&block_header);
     assert_eq!(hash, block_hash);
 
-    let block_receipts = include_str!("../tests/suits/block_17819525_receipts.json");
-
-    let receipts = common::load_receipts(block_receipts);
+    let receipts = common::load_receipts(test_block_receipts);
 
     for (i, receipt) in receipts.iter().enumerate() {
-        println!("Proving receipt {}", i);
         let proof = ReceiptMerkleProof::from_transactions(receipts.clone(), i);
         let hash = H256::hash(receipt);
         let proof = EventProof {
@@ -25,15 +20,20 @@ fn block_verification() {
             merkle_proof_of_receipt: proof,
         };
 
-        println!(
-            "root: {}",
-            hex::encode(
-                proof
-                    .merkle_proof_of_receipt
-                    .merkle_root(&proof.transaction_receipt)
-                    .0
-            )
-        );
         proof.validate().unwrap()
     }
+}
+
+#[test]
+fn merkle_proof_17819525() {
+    let test_block = include_str!("../tests/suits/block_17819525.json");
+    let block_receipts = include_str!("../tests/suits/block_17819525_receipts.json");
+    merkle_proof_test(test_block, block_receipts)
+}
+
+#[test]
+fn merkle_proof_18027905() {
+    let test_block = include_str!("../tests/suits/block_18027905.json");
+    let block_receipts = include_str!("../tests/suits/block_18027905_receipts.json");
+    merkle_proof_test(test_block, block_receipts)
 }
