@@ -10,8 +10,6 @@ pub struct ReceiptLeaf {
 
 impl ReceiptLeaf {
     pub fn new(key: Nibbles, value: TransactionReceipt) -> Self {
-        dbg!(key.clone());
-        dbg!(alloy_rlp::encode(&value));
         Self {
             key: key.encode_path_leaf(true),
             value,

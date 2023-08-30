@@ -27,3 +27,5 @@ ethers.workspace = true
 proptest.workspace = true
 test-strategy.workspace = true
 hex-literal.workspace = true
+serde_json.workspace = true
+hex.workspace = true
