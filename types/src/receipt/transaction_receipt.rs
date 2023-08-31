@@ -117,7 +117,7 @@ mod tests {
                             "000000000000000000000000000000000000000000000000000000000000beef"
                         )),
                     ],
-                    data: hex!("0100ff").to_vec().into(),
+                    data: hex!("0100ff").to_vec(),
                 }],
                 success: false,
             },
