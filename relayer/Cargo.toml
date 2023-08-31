@@ -12,8 +12,6 @@ ethers.workspace = true
 eyre.workspace = true
 helios.workspace = true
 clap.workspace = true
-# Helios doesn't do a pub interface to the node that operates on `payload` level
-helios-client.workspace = true
 log.workspace = true
 merkle-cbt.workspace = true
 rusqlite.workspace = true

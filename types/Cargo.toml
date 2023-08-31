@@ -6,13 +6,17 @@ authors.workspace = true
 repository.workspace = true
 
 [features]
+default = ["merkle-proof"]
 debug = []
+merkle-proof = ["dep:cita_trie", "dep:hasher"]
 std = ["serde/std", "serde-big-array"]
 
 [dependencies]
 alloy-rlp.workspace = true
 bytes.workspace = true
 keccak-hash.workspace = true
+cita_trie = { workspace = true, optional = true }
+hasher = { workspace = true, optional = true }
 ethbloom.workspace = true
 # Optional deps 
 serde = { workspace = true }
