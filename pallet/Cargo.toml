@@ -35,7 +35,7 @@ pallet-balances.workspace = true
 sp-runtime.workspace = true
 sp-std.workspace = true
 sp-core.workspace = true
-types.workspace = true
+types = {workspace = true, features = ["merkle-proof"]}
 hex.workspace = true
 
 [dev-dependencies]
