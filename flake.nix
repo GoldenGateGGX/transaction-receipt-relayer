@@ -47,7 +47,7 @@
 
         craneLib = (crane.mkLib pkgs).overrideToolchain rust-toolchain;
         sqlFilter = path: _type: builtins.match ".*sql$" path != null;
-        testJson = path: _type: builtins.match "block_*.json$" path != null;
+        testJson = path: _type: builtins.match "*/tests/suits/block_*.json$" path != null;
         sqlOrJsonOrCargo = path: type:
           (sqlFilter path type) || (testJson path type) || (craneLib.filterCargoSources path type);
         src = lib.cleanSourceWith {
