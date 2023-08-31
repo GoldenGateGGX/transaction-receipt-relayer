@@ -19,18 +19,28 @@ impl ExtensionNode {
     }
 }
 
-impl Encodable for ExtensionNode {
-    fn encode(&self, result: &mut dyn alloy_rlp::BufMut) {
-        let header = alloy_rlp::Header {
+impl ExtensionNode {
+    fn header(&self) -> alloy_rlp::Header {
+        alloy_rlp::Header {
             payload_length: self.prefix.as_slice().length() + self.pointer.length(),
             list: true,
-        };
+        }
+    }
+}
 
-        let mut out = vec![];
+impl Encodable for ExtensionNode {
+    fn encode(&self, result: &mut dyn alloy_rlp::BufMut) {
+        let header = self.header();
+        let mut out = Vec::with_capacity(header.payload_length);
         let out_buf = &mut out;
         encode!(out_buf, header, self.prefix.as_slice(), self.pointer);
 
         crate::encode::rlp_node(&out, result);
+    }
+
+    fn length(&self) -> usize {
+        let header = self.header();
+        alloy_rlp::length_of_length(header.payload_length) + header.payload_length
     }
 }
 

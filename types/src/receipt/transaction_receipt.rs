@@ -1,8 +1,7 @@
 use alloy_rlp::{BufMut, BytesMut, Encodable};
 
-use crate::Bloom;
+use crate::{Bloom, Log};
 
-use super::log::Log;
 use super::tx_type::TxType;
 
 /// The receipt structure containing logs from smart contracts we are listening to; adapted from
@@ -37,17 +36,6 @@ pub struct Receipt {
 }
 
 impl TransactionReceipt {
-    fn rlp_header(&self) -> alloy_rlp::Header {
-        let payload_length = self.receipt.success.length()
-            + self.receipt.cumulative_gas_used.length()
-            + self.bloom.length()
-            + self.receipt.logs.length();
-        alloy_rlp::Header {
-            list: true,
-            payload_length,
-        }
-    }
-
     fn encode_fields(&self, out: &mut dyn BufMut) {
         let list_encode: [&dyn Encodable; 4] = [
             &self.receipt.success,
@@ -61,8 +49,16 @@ impl TransactionReceipt {
 
 impl Encodable for TransactionReceipt {
     fn length(&self) -> usize {
-        let rlp_head = self.rlp_header();
-        alloy_rlp::length_of_length(rlp_head.payload_length) + rlp_head.payload_length
+        let length = self.receipt.success.length()
+            + self.receipt.cumulative_gas_used.length()
+            + self.bloom.length()
+            + self.receipt.logs.length();
+        let length = if matches!(self.receipt.tx_type, TxType::Legacy) {
+            length
+        } else {
+            length + 1
+        };
+        alloy_rlp::length_of_length(length) + length
     }
 
     fn encode(&self, out: &mut dyn alloy_rlp::BufMut) {
