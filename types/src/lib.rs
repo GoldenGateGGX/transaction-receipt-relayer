@@ -28,7 +28,7 @@ pub struct EventProof {
     /// [2]: https://ethereum.org/en/developers/docs/data-structures-and-encoding/rlp/
     /// [3]: https://ethereum.org/en/developers/docs/blocks/#block-anatomy
     /// [4]: https://github.com/paradigmxyz/reth/blob/15bb1c90b8e60dcaaaa1d2cbc82817d135192cbd/crates/rpc/rpc-types/src/eth/engine/payload.rs#L151-L178
-    pub block: BlockHeader,
+    pub block_header: BlockHeader,
 
     /// Hash of the block.
     pub block_hash: H256,
@@ -46,6 +46,7 @@ pub struct EventProof {
 }
 
 /// Error type for validating `EventProofTransaction`s.
+#[derive(Debug)]
 pub enum ValidationError {
     IncorrectBodyHash { expected: H256, actual: H256 },
     IncorrectReceiptHash { expected: H256, actual: H256 },
@@ -55,10 +56,10 @@ pub enum ValidationError {
 impl EventProof {
     /// Check that the `EventProofTransaction` is valid.
     pub fn validate(&self) -> Result<(), ValidationError> {
-        if self.block_hash != H256::hash(&self.block) {
+        if self.block_hash != H256::hash(&self.block_header) {
             return Err(ValidationError::IncorrectBodyHash {
                 expected: self.block_hash,
-                actual: H256::hash(&self.block),
+                actual: H256::hash(&self.block_header),
             });
         }
         if self.transaction_receipt_hash != H256::hash(&self.transaction_receipt) {
@@ -67,13 +68,13 @@ impl EventProof {
                 actual: H256::hash(&self.transaction_receipt),
             });
         }
-        if self.block.receipts_root
+        if self.block_header.receipts_root
             != self
                 .merkle_proof_of_receipt
                 .merkle_root(&self.transaction_receipt)
         {
             return Err(ValidationError::IncorrectReceiptRoot {
-                expected: self.block.receipts_root,
+                expected: self.block_header.receipts_root,
                 actual: self
                     .merkle_proof_of_receipt
                     .merkle_root(&self.transaction_receipt),

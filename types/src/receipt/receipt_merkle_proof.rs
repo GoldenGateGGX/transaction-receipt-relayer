@@ -76,8 +76,7 @@ impl ReceiptMerkleProof {
         let transaction_len = transactions.len();
 
         // key to prove
-        let item_to_prove =
-            alloy_rlp::encode(adjust_index_for_rlp(transaction_to_prove, transaction_len));
+        let item_to_prove = alloy_rlp::encode(transaction_to_prove);
         let mut cita_trie = cita_trie::PatriciaTrie::new(
             Arc::new(cita_trie::MemoryDB::new(true)),
             Arc::new(hasher::HasherKeccak::new()),
@@ -85,7 +84,6 @@ impl ReceiptMerkleProof {
 
         // populate the trie
         for (i, transaction) in transactions.into_iter().enumerate() {
-            let i = adjust_index_for_rlp(i, transaction_len);
             let value = alloy_rlp::encode(transaction);
             cita_trie.insert(alloy_rlp::encode(i), value).unwrap();
         }
@@ -103,7 +101,11 @@ impl ReceiptMerkleProof {
                     let prefix = node.prefix.get_data();
 
                     // there is also char that tells either it's leaf or not, but we don't need it
-                    let prefix = prefix[..prefix.len() - 1].to_vec();
+                    let prefix = if node.prefix.is_leaf() {
+                        prefix[..prefix.len() - 1].to_vec()
+                    } else {
+                        prefix.to_vec()
+                    };
 
                     key_slice = &key_slice[prefix.len()..];
                     proof.push(ReceiptMerkleProofNode::ExtensionNode { prefix });
@@ -169,10 +171,7 @@ impl ReceiptMerkleProof {
         // The final hash is the Merkle root.
 
         // Full nibble path of the leaf node.
-        let key = Nibbles::new(alloy_rlp::encode(adjust_index_for_rlp(
-            self.transaction_index,
-            self.size,
-        )));
+        let key = Nibbles::new(alloy_rlp::encode(self.transaction_index));
         let mut key_slice = key.hex_data.as_slice();
 
         for node in self.proof.iter() {
@@ -193,7 +192,7 @@ impl ReceiptMerkleProof {
             match node {
                 ReceiptMerkleProofNode::ExtensionNode { prefix } => {
                     hash = H256::from_slice(&alloy_rlp::encode(&ExtensionNode::new(
-                        Nibbles::new(prefix.to_vec()),
+                        Nibbles::from_hex(prefix.to_vec()),
                         hash,
                     )));
                 }
@@ -208,16 +207,6 @@ impl ReceiptMerkleProof {
     }
 }
 
-const fn adjust_index_for_rlp(i: usize, len: usize) -> usize {
-    if i > 0x7f {
-        i
-    } else if i == 0x7f || i + 1 == len {
-        0
-    } else {
-        i + 1
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -227,8 +216,6 @@ mod tests {
     use hasher::HasherKeccak;
 
     use crate::{Bloom, Receipt, ReceiptMerkleProof, TransactionReceipt, H256};
-
-    use super::adjust_index_for_rlp;
 
     fn trie_root(iter: impl Iterator<Item = (Vec<u8>, Vec<u8>)>) -> H256 {
         let mut trie =
@@ -241,11 +228,11 @@ mod tests {
     }
 
     fn transaction_to_key_value(
-        (index, len, transaction): (usize, usize, TransactionReceipt),
+        (index, transaction): (usize, TransactionReceipt),
     ) -> (Vec<u8>, Vec<u8>) {
         let mut vec = vec![];
         transaction.encode(&mut vec);
-        (alloy_rlp::encode(adjust_index_for_rlp(index, len)), vec)
+        (alloy_rlp::encode(index), vec)
     }
 
     #[test]
@@ -267,12 +254,11 @@ mod tests {
 
         let restored_root = proof.merkle_root(&searching_for);
 
-        let transaction_len = transactions.len();
         let root = trie_root(
             transactions
                 .into_iter()
                 .enumerate()
-                .map(|(i, value)| transaction_to_key_value((i, transaction_len, value))),
+                .map(transaction_to_key_value),
         );
         assert_eq!(root, restored_root);
     }

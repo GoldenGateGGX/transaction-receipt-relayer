@@ -1,7 +1,7 @@
 use alloy_rlp::{BufMut, BytesMut, Encodable};
 use serde::{Deserialize, Serialize};
 
-use crate::{encode, Bloom};
+use crate::Bloom;
 
 use super::log::Log;
 use super::tx_type::TxType;
@@ -50,14 +50,13 @@ impl TransactionReceipt {
     }
 
     fn encode_fields(&self, out: &mut dyn BufMut) {
-        encode!(
-            out,
-            self.rlp_header(),
-            self.receipt.success,
-            self.receipt.cumulative_gas_used,
-            self.bloom,
-            self.receipt.logs
-        );
+        let list_encode: [&dyn Encodable; 4] = [
+            &self.receipt.success,
+            &self.receipt.cumulative_gas_used,
+            &self.bloom,
+            &self.receipt.logs,
+        ];
+        alloy_rlp::encode_list::<_, dyn Encodable>(&list_encode, out)
     }
 }
 
@@ -75,13 +74,6 @@ impl Encodable for TransactionReceipt {
 
         let mut payload = BytesMut::new();
         self.encode_fields(&mut payload);
-
-        let payload_length = payload.len() + 1;
-        let header = alloy_rlp::Header {
-            list: false,
-            payload_length,
-        };
-        header.encode(out);
 
         match self.receipt.tx_type {
             TxType::EIP2930 => {
