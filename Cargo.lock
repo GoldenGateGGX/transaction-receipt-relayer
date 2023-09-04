@@ -5141,6 +5141,7 @@ dependencies = [
  "derive_more",
  "eth-types",
  "ethereum-types 0.14.1",
+ "ethers",
  "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.43)",
  "frame-system",
  "hex",
