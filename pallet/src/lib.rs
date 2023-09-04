@@ -689,7 +689,7 @@ pub mod pallet {
                 serde_json::from_str(event_proof_str).map_err(|_| Error::<T>::DeserializeFail)?;
 
             let finalized_execution_header_hash =
-                FinalizedExecutionBlocks::<T>::get(typed_chain_id, event_proof.block.number)
+                FinalizedExecutionBlocks::<T>::get(typed_chain_id, event_proof.block_header.number)
                     .ok_or(Error::<T>::HeaderHashDoesNotExist)?;
 
             let block_hash: H256 = event_proof.block_hash.0[..].into();
@@ -723,7 +723,7 @@ pub mod pallet {
                 //2 checking the receipt includes a LOG emitted by a contract address we are watching.
                 ensure!(event_proof.validate().is_ok(), Error::<T>::VerifyProofFail,);
 
-                let block_number = event_proof.block.number;
+                let block_number = event_proof.block_header.number;
 
                 if let Some(address) = ContractAddress::<T>::get() {
                     if Self::is_contract_address_in_log(event_proof.transaction_receipt, address) {

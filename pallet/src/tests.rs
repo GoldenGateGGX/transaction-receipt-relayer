@@ -527,7 +527,7 @@ mod generic_tests {
     pub fn test_submit_proof_header_hash_do_not_exist() {
         new_test_ext().execute_with(|| {
             let proof = EventProof {
-                block: types::BlockHeader {
+                block_header: types::BlockHeader {
                     parent_hash: types::H256::zero(),
                     ommers_hash: types::H256::zero(),
                     beneficiary: types::H160::new([0u8; 20]),
@@ -584,7 +584,7 @@ mod generic_tests {
             let (headers, _updates, _init_input) = get_test_context(None);
 
             let proof = EventProof {
-                block: types::BlockHeader {
+                block_header: types::BlockHeader {
                     parent_hash: types::H256::zero(),
                     ommers_hash: types::H256::zero(),
                     beneficiary: types::H160::new([0u8; 20]),
@@ -646,7 +646,7 @@ mod generic_tests {
             }));
 
             let proof = EventProof {
-                block: types::BlockHeader {
+                block_header: types::BlockHeader {
                     parent_hash: types::H256::zero(),
                     ommers_hash: types::H256::zero(),
                     beneficiary: types::H160::new([0u8; 20]),
@@ -740,7 +740,7 @@ mod generic_tests {
             };
 
             let mut proof = EventProof {
-                block: types::BlockHeader {//https://goerli.etherscan.io/block/8652100
+                block_header: types::BlockHeader {//https://goerli.etherscan.io/block/8652100
                     parent_hash: types::H256(header.parent_hash.0.into()),
                     ommers_hash: types::H256(header.uncles_hash.0.into()),
                     beneficiary: types::H160::new(header.author.0.into()),
@@ -782,7 +782,7 @@ mod generic_tests {
             let balance_after = balance_of_user(&ALICE);
 
             let transaction_receipt_hash: H256 = proof.transaction_receipt_hash.0[..].into();
-            let block_number = proof.block.number;
+            let block_number = proof.block_header.number;
             assert_eq!(ProcessedReceipts::<Test>::get((GOERLI_CHAIN, block_number, transaction_receipt_hash)), Some(()));
             assert_eq!(ProcessedReceiptsHash::<Test>::get(GOERLI_CHAIN, transaction_receipt_hash), Some(()));
             assert_eq!(balance_before + PROOF_REWARD, balance_after);
@@ -826,7 +826,7 @@ mod generic_tests {
             };
 
             let mut proof = EventProof {
-                block: types::BlockHeader {//https://goerli.etherscan.io/block/8652100
+                block_header: types::BlockHeader {//https://goerli.etherscan.io/block/8652100
                     parent_hash: types::H256(header.parent_hash.0.into()),
                     ommers_hash: types::H256(header.uncles_hash.0.into()),
                     beneficiary: types::H160::new(header.author.0.into()),
@@ -867,7 +867,7 @@ mod generic_tests {
             let balance_after = balance_of_user(&ALICE);
 
             let transaction_receipt_hash: H256 = proof.transaction_receipt_hash.0[..].into();
-            let block_number = proof.block.number;
+            let block_number = proof.block_header.number;
             assert_eq!(ProcessedReceipts::<Test>::get((GOERLI_CHAIN, block_number, transaction_receipt_hash)), None);
             assert_eq!(ProcessedReceiptsHash::<Test>::get(GOERLI_CHAIN, transaction_receipt_hash), None);
             assert_eq!(balance_before, balance_after);
@@ -916,7 +916,7 @@ mod generic_tests {
             };
 
             let mut proof = EventProof {
-                block: types::BlockHeader {//https://goerli.etherscan.io/block/8652100
+                block_header: types::BlockHeader {//https://goerli.etherscan.io/block/8652100
                     parent_hash: types::H256(header.parent_hash.0.into()),
                     ommers_hash: types::H256(header.uncles_hash.0.into()),
                     beneficiary: types::H160::new(header.author.0.into()),
@@ -958,7 +958,7 @@ mod generic_tests {
             let balance_after = balance_of_user(&ALICE);
 
             let transaction_receipt_hash: H256 = proof.transaction_receipt_hash.0[..].into();
-            let block_number = proof.block.number;
+            let block_number = proof.block_header.number;
             assert_eq!(ProcessedReceipts::<Test>::get((GOERLI_CHAIN, block_number, transaction_receipt_hash)), Some(()));
             assert_eq!(ProcessedReceiptsHash::<Test>::get(GOERLI_CHAIN, transaction_receipt_hash), Some(()));
             assert_eq!(balance_before + PROOF_REWARD, balance_after);
