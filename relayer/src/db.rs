@@ -114,13 +114,13 @@ impl DB {
 #[cfg(test)]
 mod tests {
     use proptest::{prelude::any, prop_assert_eq, proptest, strategy::Strategy};
-    use tempdir::TempDir;
+    use tempfile::{tempdir, TempDir};
     use types::{BlockHeader, Bloom, H160, H256, U256};
 
     use super::DB;
 
     fn db() -> (TempDir, DB) {
-        let dir = TempDir::new("tmp").unwrap();
+        let dir = tempdir().unwrap();
         let path = dir.path().to_owned();
         (dir, DB::new(&path).unwrap())
     }
@@ -287,7 +287,7 @@ mod tests {
         ) {
             let (tmp, db) = db();
             db.create_tables().unwrap();
-            db.insert_block(block_number, block_hash.clone(), block_header.clone(), bloom_positive)
+            db.insert_block(block_number, block_hash, block_header.clone(), bloom_positive)
                 .unwrap();
             let block = db.select_block_by_block_hash(block_hash).unwrap().unwrap();
             prop_assert_eq!(&block, &block_header);

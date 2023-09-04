@@ -6,32 +6,40 @@ use crate::{encode, receipt::trie::nibble::Nibbles, TransactionReceipt};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReceiptLeaf {
     key: Vec<u8>,
-    value: TransactionReceipt,
+    value: Vec<u8>,
 }
 
 impl ReceiptLeaf {
     pub fn new(key: Nibbles, value: TransactionReceipt) -> Self {
         Self {
             key: key.encode_path_leaf(true),
-            value,
+            value: alloy_rlp::encode(value),
+        }
+    }
+}
+
+impl ReceiptLeaf {
+    fn header(&self) -> alloy_rlp::Header {
+        alloy_rlp::Header {
+            payload_length: self.key.as_slice().length() + self.value.as_slice().length(),
+            list: true,
         }
     }
 }
 
 impl Encodable for ReceiptLeaf {
     fn encode(&self, result: &mut dyn BufMut) {
-        let value = alloy_rlp::encode(&self.value);
-
-        let header = alloy_rlp::Header {
-            payload_length: self.key.as_slice().length() + value.as_slice().length(),
-            list: true,
-        };
-
-        let mut out = vec![];
+        let header = self.header();
+        let mut out = Vec::with_capacity(header.payload_length);
         let out_buf = &mut out;
-        encode!(out_buf, header, self.key.as_slice(), value.as_slice());
+        encode!(out_buf, header, self.key.as_slice(), self.value.as_slice());
 
         crate::encode::rlp_node(&out, result);
+    }
+
+    fn length(&self) -> usize {
+        let header = self.header();
+        alloy_rlp::length_of_length(header.payload_length) + header.payload_length
     }
 }
 

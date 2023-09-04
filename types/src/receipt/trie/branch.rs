@@ -8,10 +8,8 @@ pub struct BranchNode {
     pub branches: [Option<H256>; 16],
 }
 
-impl Encodable for BranchNode {
-    fn encode(&self, result: &mut dyn BufMut) {
-        let mut buf = vec![];
-
+impl BranchNode {
+    fn header(&self) -> alloy_rlp::Header {
         // 1 for the branch index + (32 for hash or 1 for empty string)
         let payload_length = 1 + self.branches.iter().fold(0, |acc, i| {
             if let Some(hash) = i {
@@ -20,40 +18,36 @@ impl Encodable for BranchNode {
                 acc + 1
             }
         });
-
-        let header = alloy_rlp::Header {
-            payload_length,
+        alloy_rlp::Header {
             list: true,
-        };
-        header.encode(&mut buf);
+            payload_length,
+        }
+    }
+}
 
+impl Encodable for BranchNode {
+    fn encode(&self, result: &mut dyn BufMut) {
+        let header = self.header();
+        let mut buf = Vec::with_capacity(header.payload_length);
+        let buf_mut = &mut buf;
+        crate::encode!(buf_mut, header);
         for i in self.branches.iter() {
             if let Some(hash) = i {
-                hash.encode(&mut buf);
+                crate::encode!(buf_mut, hash);
             } else {
-                buf.put_u8(alloy_rlp::EMPTY_STRING_CODE);
+                buf_mut.put_u8(alloy_rlp::EMPTY_STRING_CODE);
             }
         }
 
         // Well, basically branch node consists from 17 items. 16 nodes and possible value, but it seems it's not used.
         // So, we can just put empty string as a value.
         // See https://github.com/paradigmxyz/reth/blob/72b211ed4f90a27097cee351adfc209e027659c0/crates/primitives/src/trie/nodes/branch.rs#L75C2-L75C4
-        buf.put_u8(alloy_rlp::EMPTY_STRING_CODE);
+        buf_mut.put_u8(alloy_rlp::EMPTY_STRING_CODE);
         rlp_node(&buf, result);
     }
 
     fn length(&self) -> usize {
-        let mut length = 0;
-
-        length += 1;
-
-        for i in self.branches.iter() {
-            if let Some(hash) = i {
-                length += hash.length();
-            } else {
-                length += 1;
-            }
-        }
+        let length = self.header().payload_length;
 
         length_of_length(length) + length
     }
