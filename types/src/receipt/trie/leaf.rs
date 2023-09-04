@@ -1,8 +1,9 @@
 use alloy_rlp::{BufMut, Encodable};
+use serde::{Deserialize, Serialize};
 
 use crate::{encode, receipt::trie::nibble::Nibbles, TransactionReceipt};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReceiptLeaf {
     key: Vec<u8>,
     value: Vec<u8>,

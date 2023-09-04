@@ -2,6 +2,7 @@ mod receipt;
 pub use receipt::{
     Log, Receipt, ReceiptMerkleProof, ReceiptMerkleProofNode, TransactionReceipt, TxType,
 };
+use serde::{Deserialize, Serialize};
 
 mod primitives;
 pub use primitives::{H160, H256, H64, U256};
@@ -14,6 +15,7 @@ pub use bloom::Bloom;
 
 pub(crate) mod encode;
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct EventProof {
     /// Block corresponding to a [stored block hash][1] in Webb's `pallet-eth2-light-client`.
     /// The hash of this structure is computed using its [rlp][2] representation. In particular, this is the 12th field of `execution_payload`,

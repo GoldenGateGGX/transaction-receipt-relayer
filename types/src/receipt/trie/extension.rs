@@ -1,10 +1,11 @@
 use alloy_rlp::Encodable;
+use serde::{Deserialize, Serialize};
 
 use crate::{encode, H256};
 
 use super::nibble::Nibbles;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ExtensionNode {
     pub prefix: Vec<u8>,
     pub pointer: H256,
