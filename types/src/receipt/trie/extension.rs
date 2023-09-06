@@ -18,9 +18,6 @@ impl ExtensionNode {
             pointer,
         }
     }
-}
-
-impl ExtensionNode {
     fn header(&self) -> alloy_rlp::Header {
         alloy_rlp::Header {
             payload_length: self.prefix.as_slice().length() + self.pointer.length(),
