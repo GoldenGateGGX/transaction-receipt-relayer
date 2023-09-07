@@ -564,7 +564,6 @@ mod generic_tests {
                 transaction_receipt_hash: types::H256::zero(),
                 merkle_proof_of_receipt: types::ReceiptMerkleProof {
                     proof: vec![],
-                    size: 0,
                     transaction_index: 0,
                 },
             };
@@ -621,7 +620,6 @@ mod generic_tests {
                 transaction_receipt_hash: types::H256::zero(),
                 merkle_proof_of_receipt: types::ReceiptMerkleProof {
                     proof: vec![],
-                    size: 0,
                     transaction_index: 0,
                 },
             };
@@ -683,7 +681,6 @@ mod generic_tests {
                 transaction_receipt_hash: types::H256::zero(),
                 merkle_proof_of_receipt: types::ReceiptMerkleProof {
                     proof: vec![],
-                    size: 0,
                     transaction_index: 0,
                 },
             };
