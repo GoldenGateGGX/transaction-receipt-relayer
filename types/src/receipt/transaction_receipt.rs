@@ -8,8 +8,7 @@ use super::tx_type::TxType;
 /// The receipt structure containing logs from smart contracts we are listening to; adapted from
 /// [`reth_primitives::ReceiptWithBloom`][1].
 ///
-/// [1]: https://ethereum.org/en/developers/docs/blocks/#block-anatomy
-/// [2]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/receipt.rs#L57-L62
+/// [1]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/receipt.rs#L57-L62
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct TransactionReceipt {
     /// Bloom filter build from logs.

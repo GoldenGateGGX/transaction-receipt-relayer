@@ -18,9 +18,7 @@ impl ExtensionNode {
             pointer,
         }
     }
-}
 
-impl ExtensionNode {
     fn header(&self) -> alloy_rlp::Header {
         alloy_rlp::Header {
             payload_length: self.prefix.as_slice().length() + self.pointer.length(),
@@ -51,62 +49,59 @@ mod tests {
 
     use cita_trie::MemoryDB;
     use hasher::HasherKeccak;
-    use proptest::proptest;
+    use test_strategy::proptest;
 
     use crate::{receipt::trie::leaf::ReceiptLeaf, Bloom, Log, Receipt, TransactionReceipt, H160};
 
     use super::*;
 
-    proptest! {
-        #[test]
-        fn test_extension_node(mut prefix: Vec<u8>, number:u8, data:Vec<u8>, leaf_key: Vec<u8>) {
+    #[proptest]
+    fn test_extension_node(mut prefix: Vec<u8>, number: u8, data: Vec<u8>, leaf_key: Vec<u8>) {
+        // cita crashes on empty prefix
+        prefix.push(0u8);
+        let receipt = TransactionReceipt {
+            bloom: Bloom::new([number; 256]),
+            receipt: Receipt {
+                cumulative_gas_used: number as u64,
+                logs: vec![Log {
+                    address: H160([number; 20]),
+                    topics: vec![H256([number; 32])],
+                    data,
+                }],
+                tx_type: crate::TxType::EIP1559,
+                success: true,
+            },
+        };
 
-            // cita crashes on empty prefix
-            prefix.push(0u8);
-            let receipt = TransactionReceipt {
-                bloom: Bloom::new([number; 256]),
-                receipt: Receipt {
-                    cumulative_gas_used: number as u64,
-                    logs: vec![Log {
-                        address: H160([number; 20]),
-                        topics: vec![H256([number; 32])],
-                        data,
-                    }],
-                    tx_type: crate::TxType::EIP1559,
-                    success: true,
-                },
-            };
+        let mut receipt_encoded = vec![];
+        receipt.encode(&mut receipt_encoded);
 
-            let mut receipt_encoded = vec![];
-            receipt.encode(&mut receipt_encoded);
+        let our_leaf = ReceiptLeaf::new(Nibbles::new(leaf_key.clone()), receipt);
+        let leaf_encoded = alloy_rlp::encode(our_leaf);
 
-            let our_leaf = ReceiptLeaf::new(Nibbles::new(leaf_key.clone()), receipt);
-            let leaf_encoded = alloy_rlp::encode(our_leaf);
+        let node = ExtensionNode::new(
+            Nibbles::new(prefix.clone()),
+            H256(leaf_encoded[..32].try_into().unwrap()),
+        );
 
-            let node = ExtensionNode::new(
-                Nibbles::new(prefix.clone()),
-                H256(leaf_encoded[..32].try_into().unwrap()),
-            );
+        let our_encoded = alloy_rlp::encode(node);
 
-            let our_encoded = alloy_rlp::encode(node);
+        let cita_node = cita_trie::node::ExtensionNode {
+            prefix: cita_trie::nibbles::Nibbles::from_raw(prefix, false),
+            node: cita_trie::node::Node::Leaf(Rc::new(RefCell::new(cita_trie::node::LeafNode {
+                key: cita_trie::nibbles::Nibbles::from_raw(leaf_key, true),
+                value: receipt_encoded,
+            }))),
+        };
+        let trie = cita_trie::PatriciaTrie::new(
+            Arc::new(MemoryDB::new(true)),
+            Arc::new(HasherKeccak::new()),
+        );
 
-            let cita_node = cita_trie::node::ExtensionNode {
-                prefix: cita_trie::nibbles::Nibbles::from_raw(prefix, false),
-                node: cita_trie::node::Node::Leaf(Rc::new(RefCell::new(cita_trie::node::LeafNode {
-                    key: cita_trie::nibbles::Nibbles::from_raw(leaf_key, true),
-                    value: receipt_encoded,
-                }))),
-            };
-            let trie = cita_trie::PatriciaTrie::new(
-                Arc::new(MemoryDB::new(true)),
-                Arc::new(HasherKeccak::new()),
-            );
+        let cita_encoded = trie.encode_node(cita_trie::node::Node::Extension(Rc::new(
+            RefCell::new(cita_node),
+        )));
 
-            let cita_encoded = trie.encode_node(cita_trie::node::Node::Extension(Rc::new(
-                RefCell::new(cita_node),
-            )));
-
-            assert_eq!(our_encoded, cita_encoded);
-        }
+        assert_eq!(our_encoded, cita_encoded);
     }
 }

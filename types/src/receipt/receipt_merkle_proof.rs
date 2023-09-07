@@ -60,7 +60,6 @@ pub enum ReceiptMerkleProofNode {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct ReceiptMerkleProof {
     pub proof: Vec<ReceiptMerkleProofNode>,
-    pub size: usize,
     pub transaction_index: usize,
 }
 
@@ -72,8 +71,6 @@ impl ReceiptMerkleProof {
     ) -> Self {
         use cita_trie::Trie;
         use std::sync::Arc;
-
-        let transaction_len = transactions.len();
 
         // key to prove
         let item_to_prove = alloy_rlp::encode(transaction_to_prove);
@@ -155,7 +152,6 @@ impl ReceiptMerkleProof {
 
         ReceiptMerkleProof {
             proof,
-            size: transaction_len,
             transaction_index: transaction_to_prove,
         }
     }
