@@ -66,4 +66,4 @@ eth2-pallet-init = { package = "webb-eth2-pallet-init", git = "https://github.co
 webb-proposals = { git = "https://github.com/webb-tools/webb-rs.git", default-features = false, features = ["scale", "evm"] }
 
 [patch."https://github.com/a16z/helios.git"]
-helios = { git = "https://github.com/andor0/helios.git", branch = "max-supported-logs-number-as-environ-variable" }
+helios = { git = "https://github.com/obsessed-cake/helios.git", branch = "bump-max-supported-logs-number" }
