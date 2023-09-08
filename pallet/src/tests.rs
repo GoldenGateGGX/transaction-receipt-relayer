@@ -1,8 +1,8 @@
 use crate::{
     mock::{Eth2Client, RuntimeOrigin, System},
     test_utils::*,
-    ContractAddress, EventProof, FinalizedExecutionBlocks, ProcessedReceipts,
-    ProcessedReceiptsHash, ProofDeposit, ProofReward,
+    EventProof, FinalizedExecutionBlocks, ProcessedReceipts, ProcessedReceiptsHash, ProofDeposit,
+    ProofReward, WatchedContracts,
 };
 
 use bitvec::{bitarr, order::Lsb0};
@@ -704,17 +704,30 @@ mod generic_tests {
             const PROOF_REWARD: u128 = 2;
             assert_ok!(Eth2Client::update_proof_fee(
                 RuntimeOrigin::root(),
+                GOERLI_CHAIN,
                 PROOF_DEPOSIT,
                 PROOF_REWARD
             ));
+
+            assert_eq!(Eth2Client::proof_deposit(GOERLI_CHAIN), PROOF_DEPOSIT);
+            assert_eq!(Eth2Client::proof_reward(GOERLI_CHAIN), PROOF_REWARD);
 
             let address: H160 = hex::decode("c8ad8ba92bd7ce4f02e89a543582aa3c27957311")
                 .unwrap()
                 .into();
             assert_ok!(Eth2Client::update_watching_address(
                 RuntimeOrigin::root(),
-                address
+                GOERLI_CHAIN,
+                address,
+                true
             ));
+
+            assert_eq!(
+                Eth2Client::watched_contracts(GOERLI_CHAIN)
+                    .unwrap()
+                    .to_vec(),
+                vec![address]
+            );
 
             let test_block = include_str!("../../types/tests/suits/block_17819525.json");
             let block_receipts =
@@ -803,11 +816,14 @@ mod generic_tests {
             let serialized_proof = serde_json::to_string(&proof).unwrap();
 
             let balance_before = balance_of_user(&ALICE);
-            assert_ok!(Eth2Client::submit_proof(
-                RuntimeOrigin::signed(ALICE),
-                GOERLI_CHAIN,
-                serialized_proof.into()
-            ));
+            assert_eq!(
+                Eth2Client::submit_proof(
+                    RuntimeOrigin::signed(ALICE),
+                    GOERLI_CHAIN,
+                    serialized_proof.into()
+                ),
+                Err(Error::<Test>::NoMonitoredAddressesForChain.into())
+            );
             let balance_after = balance_of_user(&ALICE);
 
             let transaction_receipt_hash: H256 = proof.transaction_receipt_hash.0[..].into();
@@ -824,7 +840,10 @@ mod generic_tests {
                 ProcessedReceiptsHash::<Test>::get(GOERLI_CHAIN, transaction_receipt_hash),
                 None
             );
-            assert_eq!(balance_before, balance_after);
+            assert_eq!(
+                balance_before,
+                balance_after - ProofDeposit::<Test>::get(GOERLI_CHAIN)
+            );
         });
     }
 
@@ -833,19 +852,32 @@ mod generic_tests {
         new_test_ext().execute_with(|| {
             const PROOF_DEPOSIT: u128 = 1;
             const PROOF_REWARD: u128 = 2;
+
             assert_ok!(Eth2Client::update_proof_fee(
                 RuntimeOrigin::root(),
+                GOERLI_CHAIN,
                 PROOF_DEPOSIT,
                 PROOF_REWARD
             ));
+
+            assert_eq!(Eth2Client::proof_deposit(GOERLI_CHAIN), PROOF_DEPOSIT);
+            assert_eq!(Eth2Client::proof_reward(GOERLI_CHAIN), PROOF_REWARD);
 
             let address: H160 = hex::decode("c8ad8ba92bd7ce4f02e89a543582aa3c27957311")
                 .unwrap()
                 .into();
             assert_ok!(Eth2Client::update_watching_address(
                 RuntimeOrigin::root(),
-                address
+                GOERLI_CHAIN,
+                address,
+                true
             ));
+            assert_eq!(
+                Eth2Client::watched_contracts(GOERLI_CHAIN)
+                    .unwrap()
+                    .to_vec(),
+                vec![address]
+            );
 
             let test_block = include_str!("../../types/tests/suits/block_17819525.json");
             let block_receipts =
@@ -928,28 +960,49 @@ mod generic_tests {
     #[test]
     pub fn test_update_watching_address() {
         new_test_ext().execute_with(|| {
-            assert_eq!(ContractAddress::<Test>::get(), None);
+            assert_eq!(WatchedContracts::<Test>::get(GOERLI_CHAIN), None);
 
             let address: H160 = [1u8; 20].into();
             assert_ok!(Eth2Client::update_watching_address(
                 RuntimeOrigin::root(),
-                address
+                GOERLI_CHAIN,
+                address,
+                true
             ));
 
-            assert_eq!(ContractAddress::<Test>::get(), Some(address));
+            assert_eq!(
+                WatchedContracts::<Test>::get(GOERLI_CHAIN)
+                    .unwrap()
+                    .to_vec(),
+                vec![address]
+            );
+
+            assert_ok!(Eth2Client::update_watching_address(
+                RuntimeOrigin::root(),
+                GOERLI_CHAIN,
+                address,
+                false
+            ));
+
+            assert_eq!(WatchedContracts::<Test>::get(GOERLI_CHAIN).unwrap(), vec![]);
         });
     }
 
     #[test]
     pub fn update_proof_fee() {
         new_test_ext().execute_with(|| {
-            assert_eq!(ProofDeposit::<Test>::get(), Default::default());
-            assert_eq!(ProofReward::<Test>::get(), Default::default());
+            assert_eq!(ProofDeposit::<Test>::get(GOERLI_CHAIN), Default::default());
+            assert_eq!(ProofReward::<Test>::get(GOERLI_CHAIN), Default::default());
 
-            assert_ok!(Eth2Client::update_proof_fee(RuntimeOrigin::root(), 1, 2));
+            assert_ok!(Eth2Client::update_proof_fee(
+                RuntimeOrigin::root(),
+                GOERLI_CHAIN,
+                1,
+                2
+            ));
 
-            assert_eq!(ProofDeposit::<Test>::get(), 1);
-            assert_eq!(ProofReward::<Test>::get(), 2);
+            assert_eq!(ProofDeposit::<Test>::get(GOERLI_CHAIN), 1);
+            assert_eq!(ProofReward::<Test>::get(GOERLI_CHAIN), 2);
         });
     }
 }

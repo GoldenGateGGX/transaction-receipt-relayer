@@ -137,6 +137,7 @@ pub mod pallet {
         Blake2_128Concat,
     };
     use frame_system::pallet_prelude::*;
+    use sp_runtime::BoundedVec;
 
     #[pallet::pallet]
     #[pallet::without_storage_info]
@@ -327,20 +328,23 @@ pub mod pallet {
         OptionQuery,
     >;
 
-    /// the contract address we watching
+    /// the contract addresses we're watching
     #[pallet::storage]
-    #[pallet::getter(fn contract_address)]
-    pub(crate) type ContractAddress<T: Config> = StorageValue<_, H160, OptionQuery>;
+    #[pallet::getter(fn watched_contracts)]
+    pub(crate) type WatchedContracts<T: Config> =
+        StorageMap<_, Blake2_128Concat, TypedChainId, BoundedVec<H160, ConstU32<100>>, OptionQuery>;
 
     /// pay validator proof deposit
     #[pallet::storage]
     #[pallet::getter(fn proof_deposit)]
-    pub(crate) type ProofDeposit<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+    pub(crate) type ProofDeposit<T: Config> =
+        StorageMap<_, Blake2_128Concat, TypedChainId, BalanceOf<T>, ValueQuery>;
 
     /// reward for Proof of Submission
     #[pallet::storage]
     #[pallet::getter(fn proof_reward)]
-    pub(crate) type ProofReward<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+    pub(crate) type ProofReward<T: Config> =
+        StorageMap<_, Blake2_128Concat, TypedChainId, BalanceOf<T>, ValueQuery>;
 
     /************* STORAGE ************ */
 
@@ -368,10 +372,16 @@ pub mod pallet {
             block_number: u64,
             receipt_hash: H256,
         },
-        UpdateContractAddress {
+        AddedContractAddress {
+            typed_chain_id: TypedChainId,
+            address: H160,
+        },
+        RemovedContractAddress {
+            typed_chain_id: TypedChainId,
             address: H160,
         },
         UpdateProofFee {
+            typed_chain_id: TypedChainId,
             proof_deposit: BalanceOf<T>,
             proof_reward: BalanceOf<T>,
         },
@@ -436,6 +446,10 @@ pub mod pallet {
         DeserializeFail,
         /// verify proof fail
         VerifyProofFail,
+        /// The chain is not monitored
+        NoMonitoredAddressesForChain,
+        /// Too many watched contracts
+        TooManyAddresses,
     }
 
     #[pallet::hooks]
@@ -693,40 +707,37 @@ pub mod pallet {
                     .ok_or(Error::<T>::HeaderHashDoesNotExist)?;
 
             let block_hash: H256 = event_proof.block_hash.0[..].into();
+
             ensure!(
                 block_hash == finalized_execution_header_hash,
                 Error::<T>::BlockHashesDoNotMatch,
             );
+
+            // 1 verifying its cryptographic integrity
+            ensure!(event_proof.validate().is_ok(), Error::<T>::VerifyProofFail);
 
             let treasury = Self::account_id();
 
             let transaction_receipt_hash: H256 = event_proof.transaction_receipt_hash.0[..].into();
 
             // If the receipt proof has already been processed
-            if <ProcessedReceiptsHash<T>>::contains_key(typed_chain_id, transaction_receipt_hash) {
-                let _success = T::Currency::transfer(
-                    &validator,
-                    &treasury,
-                    ProofDeposit::<T>::get(),
-                    AllowDeath,
-                );
-            } else {
-                let _success = T::Currency::transfer(
-                    &treasury,
-                    &validator,
-                    ProofReward::<T>::get(),
-                    AllowDeath,
-                );
-                debug_assert!(_success.is_ok());
-
-                //1 verifying its cryptographic integrity
+            let rewarded = if !<ProcessedReceiptsHash<T>>::contains_key(
+                typed_chain_id,
+                transaction_receipt_hash,
+            ) {
                 //2 checking the receipt includes a LOG emitted by a contract address we are watching.
-                ensure!(event_proof.validate().is_ok(), Error::<T>::VerifyProofFail,);
 
                 let block_number = event_proof.block_header.number;
+                let mut rewarded = false;
 
-                if let Some(address) = ContractAddress::<T>::get() {
-                    if Self::is_contract_address_in_log(event_proof.transaction_receipt, address) {
+                let addresses = Self::watched_contracts(typed_chain_id);
+                ensure!(
+                    addresses.is_some(),
+                    Error::<T>::NoMonitoredAddressesForChain
+                );
+
+                for address in addresses.expect("checked above") {
+                    if Self::is_contract_address_in_log(&event_proof.transaction_receipt, address) {
                         ProcessedReceipts::<T>::insert(
                             (typed_chain_id, block_number, transaction_receipt_hash),
                             (),
@@ -742,9 +753,33 @@ pub mod pallet {
                             block_number,
                             receipt_hash: transaction_receipt_hash,
                         });
+                        rewarded = true;
                     }
                 }
-            }
+                rewarded
+            } else {
+                false
+            };
+
+            let _success = if rewarded {
+                // Rewarding relayer for submitting a proof of inclusion of a receipt
+                T::Currency::transfer(
+                    &treasury,
+                    &validator,
+                    Self::proof_reward(typed_chain_id),
+                    AllowDeath,
+                )
+            } else {
+                // Validator
+                T::Currency::transfer(
+                    &validator,
+                    &treasury,
+                    Self::proof_deposit(typed_chain_id),
+                    AllowDeath,
+                )
+            };
+
+            debug_assert!(_success.is_ok());
 
             Ok(().into())
         }
@@ -754,12 +789,44 @@ pub mod pallet {
         #[pallet::call_index(7)]
         pub fn update_watching_address(
             origin: OriginFor<T>,
+            typed_chain_id: TypedChainId,
             address: H160,
+            add: bool,
         ) -> DispatchResultWithPostInfo {
             T::PrivilegedOrigin::ensure_origin(origin)?;
 
-            ContractAddress::<T>::put(address);
-            Self::deposit_event(Event::UpdateContractAddress { address });
+            let result =
+                WatchedContracts::<T>::mutate(typed_chain_id, |addresses| match (addresses, add) {
+                    (Some(ref mut addresses), true) => addresses.try_push(address),
+                    (Some(ref mut addresses), false) => {
+                        addresses.retain(|&x| x != address);
+                        Ok(())
+                    }
+                    (option, true) if option.is_none() => {
+                        *option = Some(
+                            BoundedVec::try_from(vec![address]).expect("unfailable conversion"),
+                        );
+                        Ok(())
+                    }
+                    _ => Ok(()),
+                });
+
+            if result.is_err() {
+                // Probably the only possible error is that the vector is full
+                return Err(Error::<T>::TooManyAddresses.into());
+            }
+
+            if add {
+                Self::deposit_event(Event::AddedContractAddress {
+                    typed_chain_id,
+                    address,
+                });
+            } else {
+                Self::deposit_event(Event::RemovedContractAddress {
+                    typed_chain_id,
+                    address,
+                });
+            }
 
             Ok(().into())
         }
@@ -769,15 +836,17 @@ pub mod pallet {
         #[pallet::call_index(8)]
         pub fn update_proof_fee(
             origin: OriginFor<T>,
+            typed_chain_id: TypedChainId,
             proof_deposit: BalanceOf<T>,
             proof_reward: BalanceOf<T>,
         ) -> DispatchResultWithPostInfo {
             T::PrivilegedOrigin::ensure_origin(origin)?;
 
-            ProofDeposit::<T>::put(proof_deposit);
-            ProofReward::<T>::put(proof_reward);
+            ProofDeposit::<T>::insert(typed_chain_id, proof_deposit);
+            ProofReward::<T>::insert(typed_chain_id, proof_reward);
 
             Self::deposit_event(Event::UpdateProofFee {
+                typed_chain_id,
                 proof_deposit,
                 proof_reward,
             });
@@ -1164,13 +1233,13 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn is_contract_address_in_log(
-        transaction_receipt: TransactionReceipt,
+        transaction_receipt: &TransactionReceipt,
         address: H160,
     ) -> bool {
         let index_of_log_address = transaction_receipt
             .receipt
             .logs
-            .into_iter()
+            .iter()
             .position(|x| x.address == types::H160::new(address.0.into()));
 
         index_of_log_address.is_some()
