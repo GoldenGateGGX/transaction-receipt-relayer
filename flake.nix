@@ -48,11 +48,16 @@
         craneLib = (crane.mkLib pkgs).overrideToolchain rust-toolchain;
         sqlFilter = path: _type: builtins.match ".*sql$" path != null;
         testJson = path: _type: builtins.match ".*\/tests\/suits\/block_.*json$" path != null;
-        sqlOrJsonOrCargo = path: type:
-          (sqlFilter path type) || (testJson path type) || (craneLib.filterCargoSources path type);
+        scaleFilter = path: _type: builtins.match ".*scale$" path != null;
         src = lib.cleanSourceWith {
           src = (craneLib.path ./.);
-          filter = sqlOrJsonOrCargo;
+          filter = path: type:
+            builtins.any (filter: filter path type) [
+              sqlFilter
+              testJson
+              scaleFilter
+              craneLib.filterCargoSources
+            ];
         };
 
         # but many build.rs do - so we add little bit slowness for simplificaiton and reproduceability
@@ -172,9 +177,19 @@
 
           # Extra inputs can be added here
           nativeBuildInputs = with pkgs; [
-            rust-toolchain
             sqlite
             lldb
+            # Mold Linker for faster builds (only on Linux)
+            (lib.optionals pkgs.stdenv.isLinux pkgs.mold)
+            (lib.optionals pkgs.stdenv.isDarwin pkgs.darwin.apple_sdk.frameworks.Security)
+            (lib.optionals pkgs.stdenv.isDarwin pkgs.darwin.apple_sdk.frameworks.SystemConfiguration)
+          ];
+
+          buildInputs = [
+            # We want the unwrapped version, wrapped comes with nixpkgs' toolchain
+            pkgs.rust-analyzer-unwrapped
+            # Finally the toolchain
+            rust-toolchain
           ];
         };
       });
