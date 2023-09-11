@@ -9,12 +9,6 @@ repository = "https://github.com/ggxchain/transaction-receipt-relayer"
 
 [workspace.dependencies]
 alloy-rlp = { version = "0.3.2", features = ["derive"] }
-anyhow = "1.0"
-async-trait = "0.1.72"
-bitvec = { version = "1.0.0", default-features = false, features = [
-    "atomic",
-    "alloc",
-] }
 bytes = "1.4.0"
 parity-scale-codec = { version = "3", default-features = false, features = [
     "derive",
@@ -23,7 +17,6 @@ parity-scale-codec = { version = "3", default-features = false, features = [
 clap = { version = "4.3", features = ["derive"] }
 env_logger = "0.10.0"
 envy = "0.3.1"
-ethereum-types = { version = "0.14.1", default-features = false }
 ethers = "2.0.7"
 eyre = "0.6.8"
 helios = { git = "https://github.com/a16z/helios.git", tag = "0.4.1" }
@@ -58,7 +51,6 @@ hasher = "0.1"
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
 pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
-sp-runtime = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
 sp-std = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
 sp-core = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
 
