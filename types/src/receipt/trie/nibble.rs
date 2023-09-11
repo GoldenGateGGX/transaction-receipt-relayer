@@ -1,6 +1,5 @@
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Nibbles {
     /// The inner representation of the nibble sequence.
     pub hex_data: Vec<u8>,

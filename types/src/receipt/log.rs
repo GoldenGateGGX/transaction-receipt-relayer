@@ -1,9 +1,9 @@
 use alloy_rlp::Encodable;
 
 use crate::{encode, H160, H256};
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Log {
     /// Contract that emitted this log.
     pub address: H160,

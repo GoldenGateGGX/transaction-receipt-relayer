@@ -1,9 +1,9 @@
 use alloy_rlp::{length_of_length, BufMut, Encodable};
-use serde::{Deserialize, Serialize};
 
 use crate::{encode::rlp_node, H256};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BranchNode {
     pub branches: [Option<H256>; 16],
 }

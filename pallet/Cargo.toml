@@ -1,5 +1,5 @@
 [package]
-name = "pallet-eth2-light-client"
+name = "pallet-receipt-registry"
 version = "0.1.0"
 edition.workspace = true
 authors.workspace = true
@@ -9,64 +9,44 @@ repository.workspace = true
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-serde = { workspace = true, optional = true, default-features = false, features = ["derive"] }
 serde_json.workspace = true
 parity-scale-codec.workspace = true
 scale-info.workspace = true
 webb-proposals.workspace = true
-ethereum-types.workspace = true
-bitvec.workspace = true
 eth-types.workspace = true
-eth2-ssz.workspace = true
-merkle-proof.workspace = true
-bls.workspace = true
-hex-literal.workspace = true
-tree-hash.workspace = true
-tree-hash-derive.workspace = true
-consensus.workspace = true
-
 frame-support.workspace = true
 frame-system.workspace = true
-pallet-balances.workspace = true
-sp-runtime.workspace = true
 sp-std.workspace = true
 sp-core.workspace = true
-types = {workspace = true, features = ["merkle-proof"]}
-hex.workspace = true
+
+types.workspace = true
+pallet-eth2-light-client.workspace = true
 
 [dev-dependencies]
-anyhow.workspace = true
-lazy_static.workspace = true
-eth2-pallet-init.workspace = true
-async-trait.workspace = true
 ethers.workspace = true
+consensus.workspace = true
+pallet-balances.workspace = true
+types = { workspace = true, features = [
+	"merkle-proof",
+	"serde",
+], default-features = false }
+hex.workspace = true
+hex-literal.workspace = true
+lazy_static.workspace = true
 
 [features]
 default = ["std"]
 std = [
-	"serde/std",
 	"parity-scale-codec/std",
 	"scale-info/std",
 	"webb-proposals/std",
-	"ethereum-types/std",
-	"bitvec/std",
 	"frame-support/std",
 	"frame-system/std",
 	"pallet-balances/std",
-	"sp-runtime/std",
 	"sp-std/std",
 	"sp-core/std",
-	"hex/std",
-	
-
-	# Local dependencies
-	"bls/std",
-	"consensus/std",
+	"pallet-eth2-light-client/std",
 	"eth-types/std",
-	"eth2-ssz/std",
-	"tree-hash/std",
-	"merkle-proof/std",
-	
 ]
 
 try-runtime = ["frame-support/try-runtime"]

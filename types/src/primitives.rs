@@ -1,8 +1,10 @@
 use alloy_rlp::{Encodable, RlpEncodableWrapper};
 use keccak_hash::keccak;
-use serde::{Deserialize, Serialize};
+use parity_scale_codec::{Decode, Encode};
+use scale_info::TypeInfo;
 
-#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone, Serialize, Deserialize, Copy)]
+#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone, Encode, Decode, TypeInfo, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct H256(pub [u8; 32]);
 
 impl H256 {
@@ -17,10 +19,12 @@ impl H256 {
     }
 }
 
-#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone, Encode, Decode, TypeInfo, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct H64(pub [u8; 8]);
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Encode, Decode, TypeInfo, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct U256(pub [u8; 32]);
 
 impl U256 {
@@ -54,7 +58,8 @@ impl From<u64> for U256 {
     }
 }
 
-#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, RlpEncodableWrapper, PartialEq, Clone, Encode, Decode, TypeInfo, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct H160(pub [u8; 20]);
 
 impl H160 {

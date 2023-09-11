@@ -1,7 +1,6 @@
 use alloy_rlp::{length_of_length, BufMut, Encodable, EMPTY_LIST_CODE, EMPTY_STRING_CODE};
 
 use crate::{encode, Bloom, H160, H256, H64, U256};
-use serde::{Deserialize, Serialize};
 
 /// The block structure hashed to generate the `block_hash` field for Ethereum's
 /// [`execution_payload`][1]; adapted from [`reth_primitives::Header`][2].
@@ -9,7 +8,8 @@ use serde::{Deserialize, Serialize};
 /// [1]: https://ethereum.org/en/developers/docs/blocks/#block-anatomy
 /// [2]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/header.rs#L40-L105
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BlockHeader {
     /// The Keccak 256-bit hash of the parent
     /// block's header, in its entirety; formally Hp.

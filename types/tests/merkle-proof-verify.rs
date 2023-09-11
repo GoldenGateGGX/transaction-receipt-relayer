@@ -37,3 +37,10 @@ fn merkle_proof_18027905() {
     let block_receipts = include_str!("../tests/suits/block_18027905_receipts.json");
     merkle_proof_test(test_block, block_receipts)
 }
+
+#[test]
+fn merkle_proof_8652100() {
+    let test_block = include_str!("../tests/suits/block_8652100.json");
+    let block_receipts = include_str!("../tests/suits/block_8652100_receipts.json");
+    merkle_proof_test(test_block, block_receipts)
+}

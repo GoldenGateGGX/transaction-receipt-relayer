@@ -1,5 +1,4 @@
 use alloy_rlp::{BufMut, BytesMut, Encodable};
-use serde::{Deserialize, Serialize};
 
 use crate::{Bloom, Log};
 
@@ -9,7 +8,8 @@ use super::tx_type::TxType;
 /// [`reth_primitives::ReceiptWithBloom`][1].
 ///
 /// [1]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/receipt.rs#L57-L62
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TransactionReceipt {
     /// Bloom filter build from logs.
     pub bloom: Bloom,
@@ -21,7 +21,8 @@ pub struct TransactionReceipt {
 /// [`reth_primitives::Receipt`][1].
 ///
 /// [1]: https://github.com/paradigmxyz/reth/blob/f41386d28e89dd436feea872178452e5302314a5/crates/primitives/src/receipt.rs#L14-L31
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Receipt {
     /// Receipt type.
     pub tx_type: TxType,

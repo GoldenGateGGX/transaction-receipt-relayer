@@ -19,7 +19,7 @@ pub fn load_block(test_suit: &str) -> (H256, BlockHeader) {
         gas_used: execution_block.gas_used.as_u64(),
         timestamp: execution_block.timestamp.as_u64(),
         mix_hash: H256(execution_block.mix_hash.unwrap().0),
-        base_fee_per_gas: Some(execution_block.base_fee_per_gas.unwrap().as_u64()),
+        base_fee_per_gas: execution_block.base_fee_per_gas.map(|a| a.as_u64()),
         extra_data: execution_block.extra_data.0.to_vec(),
 
         // Defaults

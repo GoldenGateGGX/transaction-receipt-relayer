@@ -1,5 +1,4 @@
 use crate::H256;
-use serde::{Deserialize, Serialize};
 
 use super::{
     transaction_receipt::TransactionReceipt,
@@ -11,7 +10,8 @@ use super::{
 /// transaction receipts.
 ///
 /// [1]: https://ethereum.org/se/developers/docs/data-structures-and-encoding/patricia-merkle-trie/
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ReceiptMerkleProofNode {
     /// An extension node in the Patricia Merkle Trie.
     ///
@@ -57,7 +57,8 @@ pub enum ReceiptMerkleProofNode {
 /// from the leaf node.
 ///
 /// [1]: https://ethereum.org/se/developers/docs/data-structures-and-encoding/patricia-merkle-trie/
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ReceiptMerkleProof {
     pub proof: Vec<ReceiptMerkleProofNode>,
     pub transaction_index: usize,
