@@ -58,8 +58,8 @@ mod tests {
     use std::{cell::RefCell, rc::Rc, sync::Arc};
 
     use alloy_rlp::Encodable;
-    use cita_trie::{MemoryDB, PatriciaTrie};
     use hasher::HasherKeccak;
+    use merkle_generator::{MemoryDB, PatriciaTrie};
 
     use crate::{
         receipt::trie::{leaf::ReceiptLeaf, nibble::Nibbles},
@@ -76,8 +76,8 @@ mod tests {
                 branches: Default::default(),
             };
 
-            let mut cita_branch = cita_trie::node::BranchNode {
-                children: cita_trie::node::empty_children(),
+            let mut cita_branch = merkle_generator::node::BranchNode {
+                children: merkle_generator::node::empty_children(),
                 value: None,
             };
             // Test branch with node filled up to j
@@ -106,10 +106,12 @@ mod tests {
 
                 cita_branch.insert(
                     i as usize,
-                    cita_trie::node::Node::Leaf(Rc::new(RefCell::new(cita_trie::node::LeafNode {
-                        key: cita_trie::nibbles::Nibbles::from_raw(vec![i], true),
-                        value: receipt_encoded,
-                    }))),
+                    merkle_generator::node::Node::Leaf(Rc::new(RefCell::new(
+                        merkle_generator::node::LeafNode {
+                            key: merkle_generator::nibbles::Nibbles::from_raw(vec![i], true),
+                            value: receipt_encoded,
+                        },
+                    ))),
                 )
             }
 
@@ -118,7 +120,7 @@ mod tests {
 
             let trie =
                 PatriciaTrie::new(Arc::new(MemoryDB::new(true)), Arc::new(HasherKeccak::new()));
-            let cita_encoded = trie.encode_node(cita_trie::node::Node::Branch(Rc::new(
+            let cita_encoded = trie.encode_node(merkle_generator::node::Node::Branch(Rc::new(
                 RefCell::new(cita_branch),
             )));
 

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["relayer", "types", "pallet"]
+members = ["relayer", "types", "pallet", "merkle"]
 
 [workspace.package]
 authors = ["Golden Gate"]
@@ -42,10 +42,11 @@ serde-big-array = { version = "0.5.0", default-features = false }
 ethbloom = { version = "0.13.0", default-features = false }
 toml = "0.7"
 tempfile = "3.8"
-
-types = { path = "types", default-features = false }
 cita_trie = { git = "https://github.com/ggxchain/cita-trie.git", branch = "cita-trie-extended-pub" }
 hasher = "0.1"
+
+types = { path = "types", default-features = false }
+merkle-generator = { path = "merkle" }
 
 # Substrate FRAME
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }

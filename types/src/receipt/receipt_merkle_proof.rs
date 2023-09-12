@@ -70,31 +70,33 @@ impl ReceiptMerkleProof {
         transactions: Vec<TransactionReceipt>,
         transaction_to_prove: usize,
     ) -> Self {
-        use cita_trie::Trie;
+        use merkle_generator::Trie;
         use std::sync::Arc;
 
         // key to prove
         let item_to_prove = alloy_rlp::encode(transaction_to_prove);
-        let mut cita_trie = cita_trie::PatriciaTrie::new(
-            Arc::new(cita_trie::MemoryDB::new(true)),
+        let mut merkle_generator = merkle_generator::PatriciaTrie::new(
+            Arc::new(merkle_generator::MemoryDB::new(true)),
             Arc::new(hasher::HasherKeccak::new()),
         );
 
         // populate the trie
         for (i, transaction) in transactions.into_iter().enumerate() {
             let value = alloy_rlp::encode(transaction);
-            cita_trie.insert(alloy_rlp::encode(i), value).unwrap();
+            merkle_generator
+                .insert(alloy_rlp::encode(i), value)
+                .unwrap();
         }
 
         // full nibble path to the key
         let key = Nibbles::new(item_to_prove.clone());
         let mut key_slice = key.hex_data.as_slice();
 
-        let mut processing_queue = cita_trie.get_proof(&item_to_prove).unwrap();
+        let mut processing_queue = merkle_generator.get_proof(&item_to_prove).unwrap();
         let mut proof = vec![];
         while let Some(node) = processing_queue.pop() {
             match &node {
-                cita_trie::node::Node::Extension(node) => {
+                merkle_generator::node::Node::Extension(node) => {
                     let node = node.borrow();
                     let prefix = node.prefix.get_data();
 
@@ -109,7 +111,7 @@ impl ReceiptMerkleProof {
                     proof.push(ReceiptMerkleProofNode::ExtensionNode { prefix });
                     processing_queue.push(node.node.clone());
                 }
-                cita_trie::node::Node::Branch(node) => {
+                merkle_generator::node::Node::Branch(node) => {
                     let node = node.borrow();
                     let branches = node
                         .children
@@ -123,7 +125,7 @@ impl ReceiptMerkleProof {
                             }
 
                             // Encode subtree using cita as it's not on the path to the leaf
-                            let encoded_node = cita_trie.encode_node(node);
+                            let encoded_node = merkle_generator.encode_node(node);
                             // Cita trie will return a single byte if the node is empty
                             if encoded_node.len() == 1 {
                                 None
@@ -144,10 +146,10 @@ impl ReceiptMerkleProof {
                 // We don't need to process them:
                 // * Leaf node data is provided by the caller of the verification function
                 // * Empty nodes are not included in the proof
-                // * Hash nodes are included by cita_trie.get_proof
-                cita_trie::node::Node::Empty
-                | cita_trie::node::Node::Leaf(_)
-                | cita_trie::node::Node::Hash(_) => (),
+                // * Hash nodes are included by merkle_generator.get_proof
+                merkle_generator::node::Node::Empty
+                | merkle_generator::node::Node::Leaf(_)
+                | merkle_generator::node::Node::Hash(_) => (),
             };
         }
 
@@ -209,8 +211,8 @@ mod tests {
     use std::sync::Arc;
 
     use alloy_rlp::Encodable;
-    use cita_trie::{MemoryDB, PatriciaTrie, Trie};
     use hasher::HasherKeccak;
+    use merkle_generator::{MemoryDB, PatriciaTrie, Trie};
 
     use crate::{Bloom, Receipt, ReceiptMerkleProof, TransactionReceipt, H256};
 
