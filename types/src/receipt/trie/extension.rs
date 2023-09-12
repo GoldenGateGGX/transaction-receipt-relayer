@@ -48,7 +48,6 @@ mod tests {
     use std::{cell::RefCell, rc::Rc, sync::Arc};
 
     use hasher::HasherKeccak;
-    use merkle_generator::MemoryDB;
     use test_strategy::proptest;
 
     use crate::{receipt::trie::leaf::ReceiptLeaf, Bloom, Log, Receipt, TransactionReceipt, H160};
@@ -95,10 +94,7 @@ mod tests {
                 },
             ))),
         };
-        let trie = merkle_generator::PatriciaTrie::new(
-            Arc::new(MemoryDB::new(true)),
-            Arc::new(HasherKeccak::new()),
-        );
+        let trie = merkle_generator::PatriciaTrie::new(Arc::new(HasherKeccak::new()));
 
         let cita_encoded = trie.encode_node(merkle_generator::node::Node::Extension(Rc::new(
             RefCell::new(cita_node),

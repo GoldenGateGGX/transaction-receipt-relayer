@@ -59,7 +59,7 @@ mod tests {
 
     use alloy_rlp::Encodable;
     use hasher::HasherKeccak;
-    use merkle_generator::{MemoryDB, PatriciaTrie};
+    use merkle_generator::PatriciaTrie;
 
     use crate::{
         receipt::trie::{leaf::ReceiptLeaf, nibble::Nibbles},
@@ -118,8 +118,7 @@ mod tests {
             let mut encoded = vec![];
             branch_node.encode(&mut encoded);
 
-            let trie =
-                PatriciaTrie::new(Arc::new(MemoryDB::new(true)), Arc::new(HasherKeccak::new()));
+            let trie = PatriciaTrie::new(Arc::new(HasherKeccak::new()));
             let cita_encoded = trie.encode_node(merkle_generator::node::Node::Branch(Rc::new(
                 RefCell::new(cita_branch),
             )));

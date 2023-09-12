@@ -9,7 +9,6 @@ pub enum Node {
     Leaf(Rc<RefCell<LeafNode>>),
     Extension(Rc<RefCell<ExtensionNode>>),
     Branch(Rc<RefCell<BranchNode>>),
-    Hash(Rc<RefCell<HashNode>>),
 }
 
 impl Node {
@@ -26,11 +25,6 @@ impl Node {
     pub fn from_extension(prefix: Nibbles, node: Node) -> Self {
         let ext = Rc::new(RefCell::new(ExtensionNode { prefix, node }));
         Node::Extension(ext)
-    }
-
-    pub fn from_hash(hash: Vec<u8>) -> Self {
-        let hash_node = Rc::new(RefCell::new(HashNode { hash }));
-        Node::Hash(hash_node)
     }
 }
 

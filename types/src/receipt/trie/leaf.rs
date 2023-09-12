@@ -49,7 +49,7 @@ mod tests {
 
     use alloy_rlp::Encodable;
     use hasher::HasherKeccak;
-    use merkle_generator::{node::LeafNode, MemoryDB, PatriciaTrie};
+    use merkle_generator::{node::LeafNode, PatriciaTrie};
     use test_strategy::proptest;
 
     use crate::{
@@ -81,7 +81,7 @@ mod tests {
         let mut our_leaf_encoded = vec![];
         our_leaf.encode(&mut our_leaf_encoded);
 
-        let trie = PatriciaTrie::new(Arc::new(MemoryDB::new(true)), Arc::new(HasherKeccak::new()));
+        let trie = PatriciaTrie::new(Arc::new(HasherKeccak::new()));
 
         let node = LeafNode {
             key: merkle_generator::nibbles::Nibbles::from_raw(key, true),

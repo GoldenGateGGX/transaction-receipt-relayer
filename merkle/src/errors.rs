@@ -32,14 +32,3 @@ impl From<DecoderError> for TrieError {
         TrieError::Decoder(error)
     }
 }
-
-#[derive(Debug)]
-pub enum MemDBError {}
-
-impl Error for MemDBError {}
-
-impl fmt::Display for MemDBError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "error")
-    }
-}

@@ -70,29 +70,31 @@ impl ReceiptMerkleProof {
         transactions: Vec<TransactionReceipt>,
         transaction_to_prove: usize,
     ) -> Self {
-        use merkle_generator::Trie;
+        use merkle_generator::IterativeTrie;
         use std::sync::Arc;
 
         // key to prove
         let item_to_prove = alloy_rlp::encode(transaction_to_prove);
-        let mut merkle_generator = merkle_generator::PatriciaTrie::new(
-            Arc::new(merkle_generator::MemoryDB::new(true)),
-            Arc::new(hasher::HasherKeccak::new()),
-        );
+        let mut merkle_generator =
+            merkle_generator::PatriciaTrie::new(Arc::new(hasher::HasherKeccak::new()));
 
         // populate the trie
         for (i, transaction) in transactions.into_iter().enumerate() {
             let value = alloy_rlp::encode(transaction);
             merkle_generator
-                .insert(alloy_rlp::encode(i), value)
+                .insert_iter(alloy_rlp::encode(i), value)
                 .unwrap();
+            merkle_generator.iter().for_each(|e| println!("{:?}", e));
         }
+        println!("Result");
+
+        merkle_generator.iter().for_each(|e| println!("{:?}", e));
 
         // full nibble path to the key
         let key = Nibbles::new(item_to_prove.clone());
         let mut key_slice = key.hex_data.as_slice();
 
-        let mut processing_queue = merkle_generator.get_proof(&item_to_prove).unwrap();
+        let mut processing_queue = vec![merkle_generator.root_node()];
         let mut proof = vec![];
         while let Some(node) = processing_queue.pop() {
             match &node {
@@ -147,9 +149,7 @@ impl ReceiptMerkleProof {
                 // * Leaf node data is provided by the caller of the verification function
                 // * Empty nodes are not included in the proof
                 // * Hash nodes are included by merkle_generator.get_proof
-                merkle_generator::node::Node::Empty
-                | merkle_generator::node::Node::Leaf(_)
-                | merkle_generator::node::Node::Hash(_) => (),
+                merkle_generator::node::Node::Empty | merkle_generator::node::Node::Leaf(_) => (),
             };
         }
 
@@ -212,16 +212,16 @@ mod tests {
 
     use alloy_rlp::Encodable;
     use hasher::HasherKeccak;
-    use merkle_generator::{MemoryDB, PatriciaTrie, Trie};
+    use merkle_generator::{PatriciaTrie, Trie};
 
     use crate::{Bloom, Receipt, ReceiptMerkleProof, TransactionReceipt, H256};
 
     fn trie_root(iter: impl Iterator<Item = (Vec<u8>, Vec<u8>)>) -> H256 {
-        let mut trie =
-            PatriciaTrie::new(Arc::new(MemoryDB::new(true)), Arc::new(HasherKeccak::new()));
+        let mut trie = PatriciaTrie::new(Arc::new(HasherKeccak::new()));
         for (k, v) in iter {
             trie.insert(k, v).unwrap();
         }
+        trie.iter().for_each(|e| println!("{:?}", e));
 
         H256(trie.root().unwrap()[..32].try_into().unwrap())
     }
@@ -236,7 +236,7 @@ mod tests {
 
     #[test]
     fn test_merkle_proof() {
-        let transactions: Vec<TransactionReceipt> = (0..200)
+        let transactions: Vec<TransactionReceipt> = (0..255)
             .map(|e| TransactionReceipt {
                 bloom: Bloom::new([e; 256]),
                 receipt: Receipt {
