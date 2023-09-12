@@ -13,16 +13,13 @@ use crate::node::{empty_children, BranchNode, Node};
 pub type TrieResult<T> = Result<T, TrieError>;
 
 pub trait Trie<H: Hasher> {
-    /// Inserts value into trie and modifies it if it exists
-    fn insert(&mut self, key: Vec<u8>, value: Vec<u8>) -> TrieResult<()>;
-
     /// Saves all the nodes in the db, clears the cache data, recalculates the root.
     /// Returns the root hash of the trie.
     fn root(&mut self) -> TrieResult<Vec<u8>>;
 }
 
 pub trait IterativeTrie<H: Hasher> {
-    fn insert_iter(&mut self, key: Vec<u8>, value: Vec<u8>) -> TrieResult<()>;
+    fn insert(&mut self, key: Vec<u8>, value: Vec<u8>);
 }
 
 #[derive(Debug)]
@@ -189,16 +186,6 @@ impl<H> Trie<H> for PatriciaTrie<H>
 where
     H: Hasher,
 {
-    /// Inserts value into trie and modifies it if it exists
-    fn insert(&mut self, key: Vec<u8>, value: Vec<u8>) -> TrieResult<()> {
-        if value.is_empty() {
-            return Err(TrieError::InvalidData);
-        }
-        let root = self.root.clone();
-        self.root = self.insert_at(root, Nibbles::from_raw(key, true), value.to_vec())?;
-        Ok(())
-    }
-
     /// Saves all the nodes in the db, clears the cache data, recalculates the root.
     /// Returns the root hash of the trie.
     fn root(&mut self) -> TrieResult<Vec<u8>> {
@@ -214,121 +201,17 @@ where
         self.root.clone()
     }
 
-    fn insert_at(&self, n: Node, partial: Nibbles, value: Vec<u8>) -> TrieResult<Node> {
-        println!("partial {:?}", partial);
-        match n {
-            Node::Empty => {
-                println!("insert at empty");
-                Ok(Node::from_leaf(partial, value))
-            }
-            Node::Leaf(leaf) => {
-                println!("insert at leaf");
-                let mut borrow_leaf = leaf.borrow_mut();
-
-                let old_partial = &borrow_leaf.key;
-                let match_index = partial.common_prefix(old_partial);
-                if match_index == old_partial.len() {
-                    // replace leaf value
-                    borrow_leaf.value = value;
-                    return Ok(Node::Leaf(leaf.clone()));
-                }
-
-                let mut branch = BranchNode {
-                    children: empty_children(),
-                    value: None,
-                };
-
-                let n = Node::from_leaf(
-                    old_partial.offset(match_index + 1),
-                    borrow_leaf.value.clone(),
-                );
-                branch.insert(old_partial.at(match_index), n);
-
-                let n = Node::from_leaf(partial.offset(match_index + 1), value);
-                branch.insert(partial.at(match_index), n);
-
-                if match_index == 0 {
-                    return Ok(Node::Branch(Rc::new(RefCell::new(branch))));
-                }
-
-                // if include a common prefix
-                Ok(Node::from_extension(
-                    partial.slice(0, match_index),
-                    Node::Branch(Rc::new(RefCell::new(branch))),
-                ))
-            }
-            Node::Branch(branch) => {
-                println!("insert at branch");
-                let mut borrow_branch = branch.borrow_mut();
-
-                if partial.at(0) == 0x10 {
-                    borrow_branch.value = Some(value);
-                    return Ok(Node::Branch(branch.clone()));
-                }
-
-                let child = borrow_branch.children[partial.at(0)].clone();
-                let new_child = self.insert_at(child, partial.offset(1), value)?;
-                borrow_branch.children[partial.at(0)] = new_child;
-                Ok(Node::Branch(branch.clone()))
-            }
-            Node::Extension(ext) => {
-                println!("insert at extension");
-                let mut borrow_ext = ext.borrow_mut();
-
-                let prefix = &borrow_ext.prefix;
-                let sub_node = borrow_ext.node.clone();
-                let match_index = partial.common_prefix(prefix);
-
-                if match_index == 0 {
-                    let mut branch = BranchNode {
-                        children: empty_children(),
-                        value: None,
-                    };
-                    branch.insert(
-                        prefix.at(0),
-                        if prefix.len() == 1 {
-                            sub_node
-                        } else {
-                            Node::from_extension(prefix.offset(1), sub_node)
-                        },
-                    );
-                    let node = Node::Branch(Rc::new(RefCell::new(branch)));
-
-                    return self.insert_at(node, partial, value);
-                }
-
-                if match_index == prefix.len() {
-                    let new_node = self.insert_at(sub_node, partial.offset(match_index), value)?;
-                    return Ok(Node::from_extension(prefix.clone(), new_node));
-                }
-
-                let new_ext = Node::from_extension(prefix.offset(match_index), sub_node);
-                let new_node = self.insert_at(new_ext, partial.offset(match_index), value)?;
-                borrow_ext.prefix = prefix.slice(0, match_index);
-                borrow_ext.node = new_node;
-                Ok(Node::Extension(ext.clone()))
-            }
-        }
-    }
-
-    fn insert_at_iterative(
-        &self,
-        n: Node,
-        partial_key: Nibbles,
-        value: Vec<u8>,
-    ) -> TrieResult<Node> {
-        let mut queue = vec![n.clone()];
+    fn insert_at_iterative(n: Node, partial_key: Nibbles, value: Vec<u8>) -> Node {
+        let mut queue = vec![n];
         let mut counter = 0;
         let mut partial = partial_key.clone();
-        let mut i = 0;
+
+        // Part 1: Find place to insert, or replace value.
+        // Meanwhile, nodes can be replaced with branches or extensions.
         loop {
-            i += 1;
-            if i > 100 * 1000 * 1000 {
-                panic!("infinite loop");
-            }
             match queue[counter].clone() {
                 Node::Empty => {
-                    // push leaf node and break.
+                    // Insert leaf node instead.
                     queue[counter] = Node::from_leaf(partial.clone(), value);
                     break;
                 }
@@ -337,30 +220,35 @@ where
 
                     let old_partial = &borrow_leaf.key;
                     let match_index = partial.common_prefix(old_partial);
+                    // Key is the same, replace value.
                     if match_index == old_partial.len() {
-                        // Replace leaf value, it should be the same, so we don't need to change the trie.
                         borrow_leaf.value = value;
                         break;
                     }
 
+                    // Key is not the same, we need to split the leaf into a branch.
                     let mut branch = BranchNode {
                         children: empty_children(),
                         value: None,
                     };
 
+                    // Insert old leaf.
                     let n = Node::from_leaf(
                         old_partial.offset(match_index + 1),
                         borrow_leaf.value.clone(),
                     );
+
                     branch.insert(old_partial.at(match_index), n);
 
+                    // Insert new leaf.
                     let n = Node::from_leaf(partial.offset(match_index + 1), value);
                     branch.insert(partial.at(match_index), n);
 
+                    // Replace current node with branch as they don't have a common prefix.
                     if match_index == 0 {
                         queue[counter] = Node::Branch(Rc::new(RefCell::new(branch)));
                     } else {
-                        // if include a common prefix
+                        // Replace current node with extension.
                         queue[counter] = Node::from_extension(
                             partial.slice(0, match_index),
                             Node::Branch(Rc::new(RefCell::new(branch))),
@@ -371,11 +259,13 @@ where
                 Node::Branch(branch) => {
                     let mut borrow_branch = branch.borrow_mut();
 
+                    // Replace value if key is the same.
                     if partial.at(0) == 0x10 {
                         borrow_branch.value = Some(value);
                         break;
                     }
 
+                    // Get child node on the path and push it to the queue.
                     let child = borrow_branch.children[partial.at(0)].clone();
                     partial = partial.offset(1);
                     queue.push(child);
@@ -388,6 +278,7 @@ where
                     let sub_node = borrow_ext.node.clone();
                     let match_index = partial.common_prefix(prefix);
 
+                    // If they don't share anything, we create a branch and insert both nodes.
                     if match_index == 0 {
                         let mut branch = BranchNode {
                             children: empty_children(),
@@ -403,10 +294,13 @@ where
                         );
                         let node = Node::Branch(Rc::new(RefCell::new(branch)));
                         queue[counter] = node;
+                    // If they share the whole prefix, we continue with the sub node.
                     } else if match_index == prefix.len() {
                         partial = partial.offset(match_index);
                         queue.push(sub_node);
                         counter += 1;
+                    // If they share a part of the prefix, we adjust this node to contain same prefix, and create a new extension for the rest.
+                    // This new created extension will be pushed to the queue, but on the next iteration it will be combined into branch.
                     } else {
                         let new_ext = Node::from_extension(prefix.offset(match_index), sub_node);
                         partial = partial.offset(match_index);
@@ -419,29 +313,35 @@ where
             }
         }
 
+        // We need to restore partial key as it was partly consumed in the previous loop.
+        // We ignore the part of the key that wasn't consumed as it stored in the leaf now.
         let partial = partial.len();
         let mut partial = partial_key.slice(0, partial_key.len() - partial);
-        // Now we need to iterate the queue backwards to restore connections.
-        for i in (1..queue.len()).rev() {
-            let parent = &queue[i - 1];
-            let child = &queue[i];
-            match parent {
-                Node::Branch(branch) => {
-                    let mut borrow_branch = branch.borrow_mut();
-                    let key = partial.at(partial.len() - 1);
-                    partial.pop();
-                    borrow_branch.children[key] = child.clone();
-                }
-                Node::Extension(ext) => {
-                    let mut borrow_ext = ext.borrow_mut();
-                    partial = partial.slice(0, partial.len() - borrow_ext.prefix.len());
-                    borrow_ext.node = child.clone();
-                }
-                _ => unreachable!(),
-            }
-        }
 
-        Ok(queue[0].clone())
+        // We couldn't make links over the previous loop, so we do it now.
+        // Queue contains nodes from the root to the inserted/updated leaf.
+        // We go from the leaf to the root, and make links. This order helps us to avoid cloning nodes.
+        queue
+            .into_iter()
+            .rev()
+            .reduce(|child, parent| {
+                match &parent {
+                    Node::Branch(branch) => {
+                        let mut borrow_branch = branch.borrow_mut();
+                        let key = partial.at(partial.len() - 1);
+                        partial.pop();
+                        borrow_branch.children[key] = child;
+                    }
+                    Node::Extension(ext) => {
+                        let mut borrow_ext = ext.borrow_mut();
+                        partial = partial.slice(0, partial.len() - borrow_ext.prefix.len());
+                        borrow_ext.node = child;
+                    }
+                    _ => unreachable!(),
+                };
+                parent
+            })
+            .expect("We always have at least one node from the input")
     }
 
     fn commit(&mut self) -> TrieResult<Vec<u8>> {
@@ -531,10 +431,13 @@ where
 }
 
 impl<H: Hasher> IterativeTrie<H> for PatriciaTrie<H> {
-    fn insert_iter(&mut self, key: Vec<u8>, value: Vec<u8>) -> TrieResult<()> {
+    fn insert(&mut self, key: Vec<u8>, value: Vec<u8>) {
         let root = self.root.clone();
-        self.root = self.insert_at_iterative(root, Nibbles::from_raw(key, true), value.to_vec())?;
-        Ok(())
+        self.root = PatriciaTrie::<H>::insert_at_iterative(
+            root,
+            Nibbles::from_raw(key, true),
+            value.to_vec(),
+        );
     }
 }
 

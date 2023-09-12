@@ -81,14 +81,8 @@ impl ReceiptMerkleProof {
         // populate the trie
         for (i, transaction) in transactions.into_iter().enumerate() {
             let value = alloy_rlp::encode(transaction);
-            merkle_generator
-                .insert_iter(alloy_rlp::encode(i), value)
-                .unwrap();
-            merkle_generator.iter().for_each(|e| println!("{:?}", e));
+            merkle_generator.insert(alloy_rlp::encode(i), value)
         }
-        println!("Result");
-
-        merkle_generator.iter().for_each(|e| println!("{:?}", e));
 
         // full nibble path to the key
         let key = Nibbles::new(item_to_prove.clone());
@@ -211,13 +205,14 @@ mod tests {
     use std::sync::Arc;
 
     use alloy_rlp::Encodable;
+    use cita_trie::{MemoryDB, PatriciaTrie, Trie};
     use hasher::HasherKeccak;
-    use merkle_generator::{PatriciaTrie, Trie};
 
     use crate::{Bloom, Receipt, ReceiptMerkleProof, TransactionReceipt, H256};
 
     fn trie_root(iter: impl Iterator<Item = (Vec<u8>, Vec<u8>)>) -> H256 {
-        let mut trie = PatriciaTrie::new(Arc::new(HasherKeccak::new()));
+        let mut trie =
+            PatriciaTrie::new(Arc::new(MemoryDB::new(true)), Arc::new(HasherKeccak::new()));
         for (k, v) in iter {
             trie.insert(k, v).unwrap();
         }

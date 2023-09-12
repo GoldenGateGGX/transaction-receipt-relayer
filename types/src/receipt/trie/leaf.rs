@@ -48,8 +48,8 @@ mod tests {
     use std::{cell::RefCell, rc::Rc, sync::Arc};
 
     use alloy_rlp::Encodable;
+    use cita_trie::{node::LeafNode, MemoryDB, PatriciaTrie};
     use hasher::HasherKeccak;
-    use merkle_generator::{node::LeafNode, PatriciaTrie};
     use test_strategy::proptest;
 
     use crate::{
@@ -81,15 +81,13 @@ mod tests {
         let mut our_leaf_encoded = vec![];
         our_leaf.encode(&mut our_leaf_encoded);
 
-        let trie = PatriciaTrie::new(Arc::new(HasherKeccak::new()));
+        let trie = PatriciaTrie::new(Arc::new(MemoryDB::new(true)), Arc::new(HasherKeccak::new()));
 
         let node = LeafNode {
-            key: merkle_generator::nibbles::Nibbles::from_raw(key, true),
+            key: cita_trie::nibbles::Nibbles::from_raw(key, true),
             value: receipt_encoded,
         };
-        let encoded = trie.encode_node(merkle_generator::node::Node::Leaf(Rc::new(RefCell::new(
-            node,
-        ))));
+        let encoded = trie.encode_node(cita_trie::node::Node::Leaf(Rc::new(RefCell::new(node))));
         assert_eq!(&our_leaf_encoded, &encoded);
     }
 }

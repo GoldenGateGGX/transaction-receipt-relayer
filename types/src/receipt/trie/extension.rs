@@ -47,6 +47,7 @@ impl Encodable for ExtensionNode {
 mod tests {
     use std::{cell::RefCell, rc::Rc, sync::Arc};
 
+    use cita_trie::MemoryDB;
     use hasher::HasherKeccak;
     use test_strategy::proptest;
 
@@ -85,18 +86,19 @@ mod tests {
 
         let our_encoded = alloy_rlp::encode(node);
 
-        let cita_node = merkle_generator::node::ExtensionNode {
-            prefix: merkle_generator::nibbles::Nibbles::from_raw(prefix, false),
-            node: merkle_generator::node::Node::Leaf(Rc::new(RefCell::new(
-                merkle_generator::node::LeafNode {
-                    key: merkle_generator::nibbles::Nibbles::from_raw(leaf_key, true),
-                    value: receipt_encoded,
-                },
-            ))),
+        let cita_node = cita_trie::node::ExtensionNode {
+            prefix: cita_trie::nibbles::Nibbles::from_raw(prefix, false),
+            node: cita_trie::node::Node::Leaf(Rc::new(RefCell::new(cita_trie::node::LeafNode {
+                key: cita_trie::nibbles::Nibbles::from_raw(leaf_key, true),
+                value: receipt_encoded,
+            }))),
         };
-        let trie = merkle_generator::PatriciaTrie::new(Arc::new(HasherKeccak::new()));
+        let trie = cita_trie::PatriciaTrie::new(
+            Arc::new(MemoryDB::new(true)),
+            Arc::new(HasherKeccak::new()),
+        );
 
-        let cita_encoded = trie.encode_node(merkle_generator::node::Node::Extension(Rc::new(
+        let cita_encoded = trie.encode_node(cita_trie::node::Node::Extension(Rc::new(
             RefCell::new(cita_node),
         )));
 
