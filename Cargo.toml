@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["relayer", "types", "pallet", "storage", "client"]
+members = ["relayer", "types", "pallet"]
 
 [workspace.package]
 authors = ["Golden Gate"]
