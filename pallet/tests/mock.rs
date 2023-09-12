@@ -19,19 +19,39 @@ pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::Account
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
-// Configure a mock runtime to test the pallet.
-frame_support::construct_runtime!(
-    pub enum Test where
-        Block = Block,
-        NodeBlock = Block,
-        UncheckedExtrinsic = UncheckedExtrinsic,
-    {
-        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
-        Eth2Client: pallet_eth2_light_client::{Pallet, Call, Storage, Event<T>},
-        ReceiptRegistry: pallet_receipt_registry::{Pallet, Call, Storage, Event<T>},
+// Build genesis storage according to the mock runtime.
+pub fn new_test_ext() -> sp_io::TestExternalities {
+    let mut storage = system::GenesisConfig::default()
+        .build_storage::<Test>()
+        .unwrap();
+    let _ = pallet_balances::GenesisConfig::<Test> {
+        balances: vec![
+            (AccountId32::new([1u8; 32]), 10u128.pow(18)),
+            (AccountId32::new([2u8; 32]), 20u128.pow(18)),
+            (AccountId32::new([3u8; 32]), 30u128.pow(18)),
+            (Eth2Client::account_id(), 40u128.pow(18)),
+        ],
     }
-);
+    .assimilate_storage(&mut storage);
+    let _ = pallet_eth2_light_client::GenesisConfig::<Test> {
+        phantom: Default::default(),
+        networks: vec![
+            (
+                // Mainnet
+                TypedChainId::Evm(1),
+                NetworkConfig::new(&Network::Mainnet),
+            ),
+            (
+                // Goerli
+                TypedChainId::Evm(5),
+                NetworkConfig::new(&Network::Goerli),
+            ),
+        ],
+    }
+    .assimilate_storage(&mut storage);
+
+    storage.into()
+}
 
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
@@ -106,36 +126,16 @@ impl pallet_receipt_registry::Config for Test {
     type PrivilegedOrigin = EnsureRoot<AccountId>;
 }
 
-// Build genesis storage according to the mock runtime.
-pub fn new_test_ext() -> sp_io::TestExternalities {
-    let mut storage = system::GenesisConfig::default()
-        .build_storage::<Test>()
-        .unwrap();
-    let _ = pallet_balances::GenesisConfig::<Test> {
-        balances: vec![
-            (AccountId32::new([1u8; 32]), 10u128.pow(18)),
-            (AccountId32::new([2u8; 32]), 20u128.pow(18)),
-            (AccountId32::new([3u8; 32]), 30u128.pow(18)),
-            (Eth2Client::account_id(), 40u128.pow(18)),
-        ],
+// Configure a mock runtime to test the pallet.
+frame_support::construct_runtime!(
+    pub enum Test where
+        Block = Block,
+        NodeBlock = Block,
+        UncheckedExtrinsic = UncheckedExtrinsic,
+    {
+        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+        Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
+        Eth2Client: pallet_eth2_light_client::{Pallet, Call, Storage, Event<T>},
+        ReceiptRegistry: pallet_receipt_registry::{Pallet, Call, Storage, Event<T>},
     }
-    .assimilate_storage(&mut storage);
-    let _ = pallet_eth2_light_client::GenesisConfig::<Test> {
-        phantom: Default::default(),
-        networks: vec![
-            (
-                // Mainnet
-                TypedChainId::Evm(1),
-                NetworkConfig::new(&Network::Mainnet),
-            ),
-            (
-                // Goerli
-                TypedChainId::Evm(5),
-                NetworkConfig::new(&Network::Goerli),
-            ),
-        ],
-    }
-    .assimilate_storage(&mut storage);
-
-    storage.into()
-}
+);
