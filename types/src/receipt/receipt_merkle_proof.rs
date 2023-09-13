@@ -44,6 +44,7 @@ pub enum ReceiptMerkleProofNode {
     /// [2]: https://github.com/paradigmxyz/reth/blob/8c70524fc6031dcc268fd771797f35d6229848e7/crates/primitives/src/trie/nodes/branch.rs#L8-L15
     BranchNode {
         branches: Box<[Option<H256>; 16]>,
+        value: Option<Vec<u8>>,
         index: u8,
     },
 }
@@ -134,6 +135,7 @@ impl ReceiptMerkleProof {
                     proof.push(ReceiptMerkleProofNode::BranchNode {
                         branches: Box::new(branches.try_into().unwrap()),
                         index: key_slice[0],
+                        value: node.value.clone(),
                     });
                     processing_queue.push(next);
                     key_slice = &key_slice[1..];
@@ -189,10 +191,17 @@ impl ReceiptMerkleProof {
                         hash,
                     )));
                 }
-                ReceiptMerkleProofNode::BranchNode { branches, index } => {
+                ReceiptMerkleProofNode::BranchNode {
+                    branches,
+                    index,
+                    value,
+                } => {
                     let mut branches = *branches.as_ref();
                     branches[(index & 0x0f) as usize] = Some(hash);
-                    hash = H256::from_slice(&alloy_rlp::encode(&BranchNode { branches }));
+                    hash = H256::from_slice(&alloy_rlp::encode(&BranchNode {
+                        branches,
+                        value: value.clone(),
+                    }));
                 }
             }
         }

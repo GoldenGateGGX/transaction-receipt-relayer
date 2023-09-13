@@ -6,6 +6,7 @@ use crate::{encode::rlp_node, H256};
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BranchNode {
     pub branches: [Option<H256>; 16],
+    pub value: Option<Vec<u8>>,
 }
 
 impl BranchNode {
@@ -39,10 +40,11 @@ impl Encodable for BranchNode {
             }
         }
 
-        // Well, basically branch node consists from 17 items. 16 nodes and possible value, but it seems it's not used.
-        // So, we can just put empty string as a value.
-        // See https://github.com/paradigmxyz/reth/blob/72b211ed4f90a27097cee351adfc209e027659c0/crates/primitives/src/trie/nodes/branch.rs#L75C2-L75C4
-        buf_mut.put_u8(alloy_rlp::EMPTY_STRING_CODE);
+        if let Some(value) = &self.value {
+            buf_mut.put_slice(value);
+        } else {
+            buf_mut.put_u8(alloy_rlp::EMPTY_STRING_CODE);
+        }
         rlp_node(&buf, result);
     }
 
@@ -74,6 +76,7 @@ mod tests {
         for j in 1..16 {
             let mut branch_node = BranchNode {
                 branches: Default::default(),
+                value: None,
             };
 
             let mut cita_branch = cita_trie::node::BranchNode {

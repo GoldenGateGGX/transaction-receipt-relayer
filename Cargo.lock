@@ -3762,6 +3762,7 @@ dependencies = [
 name = "merkle-generator"
 version = "4.0.0"
 dependencies = [
+ "cita_trie",
  "criterion",
  "ethereum-types 0.14.1",
  "hasher",

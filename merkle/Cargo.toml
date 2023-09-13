@@ -22,6 +22,7 @@ hex = "0.4"
 criterion = "0.3"
 ethereum-types = "0.14"
 uuid = { version = "1.1", features = ["serde", "v4"] }
+cita_trie.workspace = true
 
 [[bench]]
 name = "trie"
