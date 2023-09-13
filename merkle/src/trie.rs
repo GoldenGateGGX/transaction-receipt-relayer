@@ -1,16 +1,19 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::convert::TryInto;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use alloy_rlp::EMPTY_STRING_CODE;
 use hasher::Hasher;
-use rlp::RlpStream;
+use types::{MerkleProof, MerkleProofNode, H256};
 
 use crate::nibbles::Nibbles;
 use crate::node::{empty_children, BranchNode, Node};
 
 pub trait IterativeTrie<H: Hasher> {
     fn insert(&mut self, key: Vec<u8>, value: Vec<u8>);
+    fn merkle_proof(&self, key: Vec<u8>) -> MerkleProof;
 }
 
 #[derive(Debug)]
@@ -316,64 +319,126 @@ where
     }
 
     pub fn encode_node(&self, n: Node) -> Vec<u8> {
-        let data = self.encode_raw(n.clone());
-        // Nodes smaller than 32 bytes are stored inside their parent,
-        // Nodes equal to 32 bytes are returned directly
-        if data.len() < H::LENGTH {
-            data
-        } else {
-            let hash = self.hasher.digest(&data);
-            self.cache.borrow_mut().insert(hash.clone(), data);
-
-            self.gen_keys.borrow_mut().insert(hash.clone());
-            hash
+        #[derive(Debug)]
+        enum NodeOrHash {
+            Node {
+                node: Node,
+                depth: usize,
+                parent: usize,
+            },
+            Hash(Vec<u8>),
         }
-    }
 
-    pub fn encode_raw(&self, n: Node) -> Vec<u8> {
-        match n {
-            Node::Empty => rlp::NULL_RLP.to_vec(),
-            Node::Leaf(leaf) => {
-                let borrow_leaf = leaf.borrow();
-
-                let mut stream = RlpStream::new_list(2);
-                stream.append(&borrow_leaf.key.encode_compact());
-                stream.append(&borrow_leaf.value);
-                stream.out().to_vec()
-            }
-            Node::Branch(branch) => {
-                let borrow_branch = branch.borrow();
-
-                let mut stream = RlpStream::new_list(17);
-                for i in 0..16 {
-                    let n = borrow_branch.children[i].clone();
-                    let data = self.encode_node(n);
-                    if data.len() == H::LENGTH {
-                        stream.append(&data);
-                    } else {
-                        stream.append_raw(&data, 1);
+        let mut stack = vec![NodeOrHash::Node {
+            node: n,
+            depth: 0,
+            parent: 0,
+        }];
+        let mut counter = 0;
+        while counter < stack.len() {
+            let node_or_hash = &stack[counter];
+            let (n, depth, parent) = match node_or_hash {
+                NodeOrHash::Node {
+                    depth,
+                    node,
+                    parent,
+                } => (node.clone(), *depth, *parent),
+                NodeOrHash::Hash(_) => {
+                    if counter == 0 {
+                        break;
                     }
+                    counter -= 1;
+                    continue;
                 }
+            };
 
-                match &borrow_branch.value {
-                    Some(v) => stream.append(v),
-                    None => stream.append_empty_data(),
-                };
-                stream.out().to_vec()
-            }
-            Node::Extension(ext) => {
-                let borrow_ext = ext.borrow();
-
-                let mut stream = RlpStream::new_list(2);
-                stream.append(&borrow_ext.prefix.encode_compact());
-                let data = self.encode_node(borrow_ext.node.clone());
-                if data.len() == H::LENGTH {
-                    stream.append(&data);
-                } else {
-                    stream.append_raw(&data, 1);
+            match n.clone() {
+                Node::Empty => {
+                    stack[counter] = NodeOrHash::Hash(vec![EMPTY_STRING_CODE]);
+                    counter = parent;
                 }
-                stream.out().to_vec()
+                Node::Leaf(leaf) => {
+                    let borrow_leaf = leaf.borrow();
+                    let leaf = types::Leaf::from_raw(
+                        borrow_leaf.key.encode_compact(),
+                        borrow_leaf.value.clone(),
+                    );
+                    let hash = alloy_rlp::encode(leaf).to_vec();
+
+                    stack[counter] = NodeOrHash::Hash(hash);
+                    counter = parent;
+                }
+                Node::Branch(branch) if depth < 16 => {
+                    let borrow_branch = branch.borrow();
+                    stack.push(NodeOrHash::Node {
+                        node: borrow_branch.children[depth].clone(),
+                        depth: 0,
+                        parent: counter,
+                    });
+                    stack[counter] = NodeOrHash::Node {
+                        node: n,
+                        depth: depth + 1,
+                        parent,
+                    };
+                    counter = stack.len() - 1;
+                }
+                Node::Branch(branch) => {
+                    let borrow_branch = branch.borrow();
+                    let branch = types::BranchNode {
+                        branches: stack
+                            .drain(counter + 1..counter + 17)
+                            .map(|n| match n {
+                                NodeOrHash::Node { .. } => unreachable!(),
+                                NodeOrHash::Hash(hash) => {
+                                    if hash.len() == 1 {
+                                        None
+                                    } else {
+                                        Some(H256::from_slice(&hash))
+                                    }
+                                }
+                            })
+                            .collect::<Vec<_>>()[..16]
+                            .try_into()
+                            .unwrap(),
+                        value: borrow_branch.value.clone(),
+                    };
+                    stack[counter] = NodeOrHash::Hash(alloy_rlp::encode(&branch).to_vec());
+                    counter = parent;
+                }
+                Node::Extension(ext) if depth == 0 => {
+                    let borrow_ext = ext.borrow();
+                    stack.push(NodeOrHash::Node {
+                        node: borrow_ext.node.clone(),
+                        depth: 0,
+                        parent: counter,
+                    });
+                    stack[counter] = NodeOrHash::Node {
+                        node: n,
+                        depth: 1,
+                        parent,
+                    };
+                    counter = stack.len() - 1;
+                }
+                Node::Extension(ext) => {
+                    let borrow_ext = ext.borrow();
+                    let extension = types::ExtensionNode {
+                        prefix: borrow_ext.prefix.encode_compact(),
+                        pointer: H256::from_slice(&match &stack[counter + 1] {
+                            NodeOrHash::Node { .. } => unreachable!(),
+                            NodeOrHash::Hash(hash) => hash.clone(),
+                        }),
+                    };
+                    stack[counter] = NodeOrHash::Hash(alloy_rlp::encode(&extension).to_vec());
+                    stack.pop();
+                    counter = parent;
+                }
             }
+        }
+        assert!(stack.len() == 1);
+
+        match stack.pop() {
+            Some(NodeOrHash::Hash(hash)) => hash,
+            _ => unreachable!(),
         }
     }
 }
@@ -386,6 +451,75 @@ impl<H: Hasher> IterativeTrie<H> for PatriciaTrie<H> {
             Nibbles::from_raw(key, true),
             value.to_vec(),
         );
+    }
+
+    fn merkle_proof(&self, proving_key: Vec<u8>) -> MerkleProof {
+        let mut key = Nibbles::from_raw(proving_key.clone(), true);
+
+        let mut processing_queue = vec![self.root_node()];
+        let mut proof = vec![];
+        while let Some(node) = processing_queue.pop() {
+            match node {
+                Node::Extension(node) => {
+                    let node = node.borrow();
+                    let prefix = node.prefix.get_data();
+
+                    // there is also char that tells either it's leaf or not, but we don't need it
+                    let prefix = if node.prefix.is_leaf() {
+                        prefix[..prefix.len() - 1].to_vec()
+                    } else {
+                        prefix.to_vec()
+                    };
+
+                    key = key.offset(prefix.len());
+                    proof.push(MerkleProofNode::ExtensionNode { prefix });
+                    processing_queue.push(node.node.clone());
+                }
+                Node::Branch(node) => {
+                    let node = node.borrow();
+                    let branches = node
+                        .children
+                        .clone()
+                        .iter()
+                        .enumerate()
+                        .map(|(i, node)| {
+                            // We don't need to encode the node on the path to the leaf as it will be processed
+                            if i == key.at(0) {
+                                return None;
+                            }
+
+                            // Encode subtree using cita as it's not on the path to the leaf
+                            let encoded_node = self.encode_node(node.clone());
+                            // Cita trie will return a single byte if the node is empty
+                            if encoded_node.len() == 1 {
+                                None
+                            } else {
+                                Some(H256::from_slice(&encoded_node))
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    let next = node.children[key.at(0)].clone();
+                    proof.push(MerkleProofNode::BranchNode {
+                        branches: Box::new(branches.try_into().unwrap()),
+                        index: key.at(0) as u8,
+                        value: node.value.clone(),
+                    });
+                    processing_queue.push(next);
+                    key = key.offset(1);
+                }
+
+                // We don't need to process them:
+                // * Leaf node data is provided by the caller of the verification function
+                // * Empty nodes are not included in the proof
+                // * Hash nodes are included by merkle_generator.get_proof
+                Node::Empty | Node::Leaf(_) => (),
+            };
+        }
+
+        MerkleProof {
+            proof,
+            key: proving_key,
+        }
     }
 }
 
@@ -461,5 +595,74 @@ mod tests {
                 .for_each(|(k, v)| assert_eq!(kv.remove(&k).unwrap(), v));
             assert!(kv.is_empty());
         }
+    }
+}
+
+#[cfg(test)]
+mod merkle_proof {
+    use std::sync::Arc;
+
+    use alloy_rlp::Encodable;
+    use cita_trie::{MemoryDB, PatriciaTrie, Trie};
+    use hasher::HasherKeccak;
+
+    use types::{Bloom, Receipt, TransactionReceipt, H256};
+
+    use crate::IterativeTrie;
+
+    fn trie_root(iter: impl Iterator<Item = (Vec<u8>, Vec<u8>)>) -> H256 {
+        let mut trie =
+            PatriciaTrie::new(Arc::new(MemoryDB::new(true)), Arc::new(HasherKeccak::new()));
+        for (k, v) in iter {
+            trie.insert(k, v).unwrap();
+        }
+
+        H256::from_slice(&trie.root().unwrap())
+    }
+
+    fn transaction_to_key_value(
+        (index, transaction): (usize, TransactionReceipt),
+    ) -> (Vec<u8>, Vec<u8>) {
+        let mut vec = vec![];
+        transaction.encode(&mut vec);
+        (alloy_rlp::encode(index), vec)
+    }
+
+    #[test]
+    fn test_merkle_proof() {
+        let transactions: Vec<TransactionReceipt> = (0..255)
+            .map(|e| TransactionReceipt {
+                bloom: Bloom::new([e; 256]),
+                receipt: Receipt {
+                    tx_type: types::TxType::EIP1559,
+                    logs: vec![],
+                    cumulative_gas_used: e as u64,
+                    success: true,
+                },
+            })
+            .collect();
+        const SEARCHIN_INDEX: usize = 55;
+        let searching_for = transactions[SEARCHIN_INDEX].clone();
+        let mut trie = crate::PatriciaTrie::new(Arc::new(HasherKeccak::new()));
+        for (k, v) in transactions
+            .clone()
+            .into_iter()
+            .enumerate()
+            .map(transaction_to_key_value)
+        {
+            trie.insert(k, v);
+        }
+
+        let proof = trie.merkle_proof(alloy_rlp::encode(SEARCHIN_INDEX));
+
+        let restored_root = proof.merkle_root(&searching_for);
+
+        let root = trie_root(
+            transactions
+                .into_iter()
+                .enumerate()
+                .map(transaction_to_key_value),
+        );
+        assert_eq!(root, restored_root);
     }
 }

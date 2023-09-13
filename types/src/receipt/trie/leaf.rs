@@ -4,13 +4,17 @@ use crate::{encode, receipt::trie::nibble::Nibbles, TransactionReceipt};
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ReceiptLeaf {
+pub struct Leaf {
     key: Vec<u8>,
     value: Vec<u8>,
 }
 
-impl ReceiptLeaf {
-    pub fn new(key: Nibbles, value: TransactionReceipt) -> Self {
+impl Leaf {
+    pub fn from_raw(key: Vec<u8>, value: Vec<u8>) -> Self {
+        Self { key, value }
+    }
+
+    pub fn from_transaction_receipt(key: Nibbles, value: TransactionReceipt) -> Self {
         Self {
             key: key.encode_path_leaf(true),
             value: alloy_rlp::encode(value),
@@ -18,7 +22,7 @@ impl ReceiptLeaf {
     }
 }
 
-impl ReceiptLeaf {
+impl Leaf {
     fn header(&self) -> alloy_rlp::Header {
         alloy_rlp::Header {
             payload_length: self.key.as_slice().length() + self.value.as_slice().length(),
@@ -27,7 +31,7 @@ impl ReceiptLeaf {
     }
 }
 
-impl Encodable for ReceiptLeaf {
+impl Encodable for Leaf {
     fn encode(&self, result: &mut dyn BufMut) {
         let header = self.header();
         let mut out = Vec::with_capacity(header.payload_length);
@@ -53,7 +57,7 @@ mod tests {
     use test_strategy::proptest;
 
     use crate::{
-        receipt::trie::{leaf::ReceiptLeaf, nibble::Nibbles},
+        receipt::trie::{leaf::Leaf, nibble::Nibbles},
         Bloom, Log, Receipt, TransactionReceipt, H160, H256,
     };
 
@@ -76,7 +80,7 @@ mod tests {
         let mut receipt_encoded = vec![];
         receipt.encode(&mut receipt_encoded);
 
-        let our_leaf = ReceiptLeaf::new(Nibbles::new(key.clone()), receipt);
+        let our_leaf = Leaf::new(Nibbles::new(key.clone()), receipt);
 
         let mut our_leaf_encoded = vec![];
         our_leaf.encode(&mut our_leaf_encoded);

@@ -26,10 +26,7 @@ pallet-eth2-light-client.workspace = true
 ethers.workspace = true
 consensus.workspace = true
 pallet-balances.workspace = true
-types = { workspace = true, features = [
-	"merkle-proof",
-	"serde",
-], default-features = false }
+types = { workspace = true, features = ["serde"], default-features = false }
 hex.workspace = true
 hex-literal.workspace = true
 lazy_static.workspace = true

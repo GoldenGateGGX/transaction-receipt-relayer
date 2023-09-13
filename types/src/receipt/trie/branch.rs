@@ -64,7 +64,7 @@ mod tests {
     use hasher::HasherKeccak;
 
     use crate::{
-        receipt::trie::{leaf::ReceiptLeaf, nibble::Nibbles},
+        receipt::trie::{leaf::Leaf, nibble::Nibbles},
         Bloom, Log, Receipt, TransactionReceipt, H160, H256,
     };
 
@@ -102,7 +102,7 @@ mod tests {
                 let mut receipt_encoded = vec![];
                 receipt.encode(&mut receipt_encoded);
 
-                let leaf = ReceiptLeaf::new(Nibbles::new(vec![i]), receipt);
+                let leaf = Leaf::from_transaction_receipt(Nibbles::new(vec![i]), receipt);
                 let mut buffer = vec![];
                 leaf.encode(&mut buffer);
                 branch_node.branches[i as usize] = Some(H256(buffer[..32].try_into().unwrap()));

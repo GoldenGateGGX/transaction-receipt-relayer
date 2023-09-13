@@ -12,9 +12,12 @@ homepage = "https://github.com/cryptape/cita-trie"
 documentation = "https://docs.rs/cita_trie"
 
 [dependencies]
-parking_lot = "0.12"
+alloy-rlp.workspace = true
+types.workspace = true
+hasher = { workspace = true, features = ["hash-keccak"] }
+serde.workspace = true
 rlp = "0.5"
-hasher = { version = "0.1", features = ["hash-keccak"] }
+
 
 [dev-dependencies]
 rand = "0.7"

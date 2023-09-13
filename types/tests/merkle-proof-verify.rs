@@ -1,4 +1,4 @@
-use types::{EventProof, ReceiptMerkleProof, H256};
+use types::{EventProof, MerkleProof, H256};
 
 mod common;
 
@@ -10,7 +10,7 @@ fn merkle_proof_test(test_block: &str, test_block_receipts: &str) {
     let receipts = common::load_receipts(test_block_receipts);
 
     for (i, receipt) in receipts.iter().enumerate() {
-        let proof = ReceiptMerkleProof::from_transactions(receipts.clone(), i);
+        let proof = MerkleProof::from_transactions(receipts.clone(), i);
         let hash = H256::hash(receipt);
         let proof = EventProof {
             block_hash,

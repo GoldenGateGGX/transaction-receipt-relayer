@@ -3762,14 +3762,16 @@ dependencies = [
 name = "merkle-generator"
 version = "4.0.0"
 dependencies = [
+ "alloy-rlp",
  "cita_trie",
  "criterion",
  "ethereum-types 0.14.1",
  "hasher",
  "hex",
- "parking_lot 0.12.1",
  "rand 0.7.3",
  "rlp 0.5.2",
+ "serde",
+ "types",
  "uuid 1.4.1",
 ]
 
@@ -7159,7 +7161,6 @@ dependencies = [
  "hex",
  "hex-literal",
  "keccak-hash",
- "merkle-generator",
  "parity-scale-codec 3.6.4",
  "proptest",
  "scale-info",
@@ -7167,7 +7168,6 @@ dependencies = [
  "serde-big-array",
  "serde_json",
  "test-strategy",
- "types",
 ]
 
 [[package]]

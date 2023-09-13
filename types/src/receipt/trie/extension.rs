@@ -51,7 +51,7 @@ mod tests {
     use hasher::HasherKeccak;
     use test_strategy::proptest;
 
-    use crate::{receipt::trie::leaf::ReceiptLeaf, Bloom, Log, Receipt, TransactionReceipt, H160};
+    use crate::{receipt::trie::leaf::Leaf, Bloom, Log, Receipt, TransactionReceipt, H160};
 
     use super::*;
 
@@ -76,7 +76,7 @@ mod tests {
         let mut receipt_encoded = vec![];
         receipt.encode(&mut receipt_encoded);
 
-        let our_leaf = ReceiptLeaf::new(Nibbles::new(leaf_key.clone()), receipt);
+        let our_leaf = Leaf::from_transaction_receipt(Nibbles::new(leaf_key.clone()), receipt);
         let leaf_encoded = alloy_rlp::encode(our_leaf);
 
         let node = ExtensionNode::new(

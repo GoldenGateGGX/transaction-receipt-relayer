@@ -1,6 +1,7 @@
 mod receipt;
 pub use receipt::{
-    Log, Receipt, ReceiptMerkleProof, ReceiptMerkleProofNode, TransactionReceipt, TxType,
+    BranchNode, ExtensionNode, Leaf, Log, MerkleProof, MerkleProofNode, Nibbles, Receipt,
+    TransactionReceipt, TxType,
 };
 
 mod primitives;
@@ -42,7 +43,7 @@ pub struct EventProof {
 
     /// A Merkle proof that the transaction receipt has been included in the `receipt_root` field in
     /// the `block`.
-    pub merkle_proof_of_receipt: ReceiptMerkleProof,
+    pub merkle_proof_of_receipt: MerkleProof,
 }
 
 /// Error type for validating `EventProofTransaction`s.

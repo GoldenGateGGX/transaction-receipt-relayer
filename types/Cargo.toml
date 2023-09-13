@@ -8,18 +8,17 @@ repository.workspace = true
 [features]
 default = []
 debug = []
-serde = ["dep:serde", "dep:serde-big-array"]
-std = ["serde/std"]
-merkle-proof = ["dep:merkle-generator", "dep:hasher"]
+serde = ["dep:serde", "serde/std", "dep:serde-big-array"]
+std = ["serde"]
 
 [dependencies]
+
+
 alloy-rlp.workspace = true
 parity-scale-codec.workspace = true
 scale-info.workspace = true
 bytes.workspace = true
 keccak-hash.workspace = true
-merkle-generator = { workspace = true, optional = true }
-hasher = { workspace = true, optional = true }
 ethbloom.workspace = true
 # Optional deps 
 serde = { workspace = true, optional = true, default-features = false }
@@ -34,4 +33,3 @@ serde_json.workspace = true
 hex.workspace = true
 cita_trie.workspace = true
 hasher.workspace = true
-types = { path = ".", features = ["merkle-proof"] }
