@@ -58,7 +58,7 @@ pub enum MerkleProofNode {
 /// from the leaf node.
 ///
 /// [1]: https://ethereum.org/se/developers/docs/data-structures-and-encoding/patricia-merkle-trie/
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MerkleProof {
     pub proof: Vec<MerkleProofNode>,
@@ -113,64 +113,5 @@ impl MerkleProof {
             }
         }
         hash
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
-
-    use alloy_rlp::Encodable;
-    use cita_trie::{MemoryDB, PatriciaTrie, Trie};
-    use hasher::HasherKeccak;
-
-    use crate::{Bloom, MerkleProof, Receipt, TransactionReceipt, H256};
-
-    fn trie_root(iter: impl Iterator<Item = (Vec<u8>, Vec<u8>)>) -> H256 {
-        let mut trie =
-            PatriciaTrie::new(Arc::new(MemoryDB::new(true)), Arc::new(HasherKeccak::new()));
-        for (k, v) in iter {
-            trie.insert(k, v).unwrap();
-        }
-        trie.iter().for_each(|e| println!("{:?}", e));
-
-        H256(trie.root().unwrap()[..32].try_into().unwrap())
-    }
-
-    fn transaction_to_key_value(
-        (index, transaction): (usize, TransactionReceipt),
-    ) -> (Vec<u8>, Vec<u8>) {
-        let mut vec = vec![];
-        transaction.encode(&mut vec);
-        (alloy_rlp::encode(index), vec)
-    }
-
-    #[test]
-    fn test_merkle_proof() {
-        let transactions: Vec<TransactionReceipt> = (0..255)
-            .map(|e| TransactionReceipt {
-                bloom: Bloom::new([e; 256]),
-                receipt: Receipt {
-                    tx_type: crate::TxType::EIP1559,
-                    logs: vec![],
-                    cumulative_gas_used: e as u64,
-                    success: true,
-                },
-            })
-            .collect();
-        const SEARCHIN_INDEX: usize = 55;
-        let searching_for = transactions[SEARCHIN_INDEX].clone();
-
-        let proof = MerkleProof::from_transactions(transactions.clone(), SEARCHIN_INDEX);
-
-        let restored_root = proof.merkle_root(&searching_for);
-
-        let root = trie_root(
-            transactions
-                .into_iter()
-                .enumerate()
-                .map(transaction_to_key_value),
-        );
-        assert_eq!(root, restored_root);
     }
 }

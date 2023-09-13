@@ -3766,11 +3766,13 @@ dependencies = [
  "cita_trie",
  "criterion",
  "ethereum-types 0.14.1",
+ "ethers",
  "hasher",
  "hex",
  "rand 0.7.3",
  "rlp 0.5.2",
  "serde",
+ "serde_json",
  "types",
  "uuid 1.4.1",
 ]
@@ -4234,6 +4236,7 @@ dependencies = [
 name = "pallet-receipt-registry"
 version = "0.1.0"
 dependencies = [
+ "alloy-rlp",
  "eth-types",
  "ethers",
  "frame-support",
@@ -4241,6 +4244,7 @@ dependencies = [
  "hex",
  "hex-literal",
  "lazy_static",
+ "merkle-generator",
  "pallet-balances",
  "pallet-eth2-light-client",
  "parity-scale-codec 3.6.4",

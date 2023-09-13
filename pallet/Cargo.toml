@@ -30,6 +30,8 @@ types = { workspace = true, features = ["serde"], default-features = false }
 hex.workspace = true
 hex-literal.workspace = true
 lazy_static.workspace = true
+merkle-generator.workspace = true
+alloy-rlp.worskpace = true
 
 [features]
 default = ["std"]

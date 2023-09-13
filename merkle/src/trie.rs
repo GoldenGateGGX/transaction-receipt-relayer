@@ -1,32 +1,21 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use alloy_rlp::EMPTY_STRING_CODE;
-use hasher::Hasher;
 use types::{MerkleProof, MerkleProofNode, H256};
 
 use crate::nibbles::Nibbles;
 use crate::node::{empty_children, BranchNode, Node};
 
-pub trait IterativeTrie<H: Hasher> {
+pub trait IterativeTrie {
     fn insert(&mut self, key: Vec<u8>, value: Vec<u8>);
     fn merkle_proof(&self, key: Vec<u8>) -> MerkleProof;
 }
 
 #[derive(Debug)]
-pub struct PatriciaTrie<H>
-where
-    H: Hasher,
-{
+pub struct PatriciaTrie {
     root: Node,
-
-    hasher: Arc<H>,
-
-    cache: RefCell<HashMap<Vec<u8>, Vec<u8>>>,
-    gen_keys: RefCell<HashSet<Vec<u8>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -143,10 +132,7 @@ impl Iterator for TrieIterator {
     }
 }
 
-impl<H> PatriciaTrie<H>
-where
-    H: Hasher,
-{
+impl PatriciaTrie {
     pub fn iter(&self) -> TrieIterator {
         let nodes = vec![self.root.clone().into()];
         TrieIterator {
@@ -154,22 +140,12 @@ where
             nodes,
         }
     }
-    pub fn new(hasher: Arc<H>) -> Self {
-        Self {
-            root: Node::Empty,
-
-            cache: RefCell::new(HashMap::new()),
-            gen_keys: RefCell::new(HashSet::new()),
-
-            hasher,
-        }
+    pub fn new() -> Self {
+        Self { root: Node::Empty }
     }
 }
 
-impl<H> PatriciaTrie<H>
-where
-    H: Hasher,
-{
+impl PatriciaTrie {
     pub fn root_node(&self) -> Node {
         self.root.clone()
     }
@@ -443,14 +419,11 @@ where
     }
 }
 
-impl<H: Hasher> IterativeTrie<H> for PatriciaTrie<H> {
+impl IterativeTrie for PatriciaTrie {
     fn insert(&mut self, key: Vec<u8>, value: Vec<u8>) {
         let root = self.root.clone();
-        self.root = PatriciaTrie::<H>::insert_at_iterative(
-            root,
-            Nibbles::from_raw(key, true),
-            value.to_vec(),
-        );
+        self.root =
+            PatriciaTrie::insert_at_iterative(root, Nibbles::from_raw(key, true), value.to_vec());
     }
 
     fn merkle_proof(&self, proving_key: Vec<u8>) -> MerkleProof {
@@ -541,7 +514,7 @@ mod tests {
         let value = vec![0];
 
         // Cita trie can't handle this case, but we just slow :C
-        let mut trie = PatriciaTrie::new(Arc::new(HasherKeccak::new()));
+        let mut trie = PatriciaTrie::new();
         for _ in 0..10000 {
             trie.insert(key.clone(), value.clone());
             key.push(0u8);
@@ -551,13 +524,13 @@ mod tests {
 
     #[test]
     fn test_trie_insert() {
-        let mut trie = PatriciaTrie::new(Arc::new(HasherKeccak::new()));
+        let mut trie = PatriciaTrie::new();
         trie.insert(b"test".to_vec(), b"test".to_vec());
     }
 
     #[test]
     fn test_trie_random_insert() {
-        let mut trie = PatriciaTrie::new(Arc::new(HasherKeccak::new()));
+        let mut trie = PatriciaTrie::new();
         let mut cita_trie = cita_trie::PatriciaTrie::new(
             Arc::new(cita_trie::MemoryDB::new(true)),
             Arc::new(HasherKeccak::new()),
@@ -586,7 +559,7 @@ mod tests {
         kv.insert(b"test23".to_vec(), b"test7".to_vec());
         kv.insert(b"test9".to_vec(), b"test8".to_vec());
         {
-            let mut trie = PatriciaTrie::new(Arc::new(HasherKeccak::new()));
+            let mut trie = PatriciaTrie::new();
             let mut kv = kv.clone();
             kv.iter()
                 .for_each(|(k, v)| trie.insert(k.clone(), v.clone()));
@@ -643,7 +616,7 @@ mod merkle_proof {
             .collect();
         const SEARCHIN_INDEX: usize = 55;
         let searching_for = transactions[SEARCHIN_INDEX].clone();
-        let mut trie = crate::PatriciaTrie::new(Arc::new(HasherKeccak::new()));
+        let mut trie = crate::PatriciaTrie::new();
         for (k, v) in transactions
             .clone()
             .into_iter()

@@ -4,7 +4,7 @@ use frame_support::{assert_err, assert_ok};
 use webb_proposals::TypedChainId;
 
 use pallet_receipt_registry::Error;
-use types::{Bloom, EventProof, H160, H256, U256};
+use types::{Bloom, EventProof, MerkleProof, TransactionReceipt, H160, H256, U256};
 
 mod mock;
 use mock::{new_test_ext, Eth2Client, ReceiptRegistry, RuntimeOrigin, System, Test};
@@ -12,7 +12,7 @@ use mock::{new_test_ext, Eth2Client, ReceiptRegistry, RuntimeOrigin, System, Tes
 mod test_utils;
 use test_utils::*;
 
-#[path = "../../types/tests/common.rs"]
+#[path = "../../merkle/tests/common.rs"]
 pub mod common;
 
 pub const MAINNET_CHAIN: TypedChainId = TypedChainId::Evm(1);
@@ -45,6 +45,16 @@ pub fn get_test_context(
 
 fn balance_of_user(user: &AccountId32) -> u128 {
     System::account(user).data.free
+}
+
+fn create_proof(receipts: &[TransactionReceipt], index_to_prove: usize) -> MerkleProof {
+    use merkle_generator::IterativeTrie;
+
+    let mut trie = merkle_generator::PatriciaTrie::new();
+    receipts.iter().enumerate().for_each(|(i, receipt)| {
+        trie.insert(alloy_rlp::encode(i), alloy_rlp::encode(receipt));
+    });
+    trie.merkle_proof(alloy_rlp::encode(index_to_prove))
 }
 
 fn block_header_convert(header: eth_types::BlockHeader) -> types::BlockHeader {
@@ -134,9 +144,9 @@ pub fn test_submit_proof_header_hash_do_not_exist() {
                 },
             },
             transaction_receipt_hash: types::H256::zero(),
-            merkle_proof_of_receipt: types::ReceiptMerkleProof {
+            merkle_proof_of_receipt: types::MerkleProof {
                 proof: vec![],
-                transaction_index: 0,
+                key: vec![],
             },
         };
         let serialized_proof = serde_json::to_string(&proof).unwrap();
@@ -190,10 +200,7 @@ pub fn test_submit_proof_block_hash_do_not_match() {
                 },
             },
             transaction_receipt_hash: types::H256::zero(),
-            merkle_proof_of_receipt: types::ReceiptMerkleProof {
-                proof: vec![],
-                transaction_index: 0,
-            },
+            merkle_proof_of_receipt: Default::default(),
         };
         let serialized_proof = serde_json::to_string(&proof).unwrap();
 
@@ -251,10 +258,7 @@ pub fn test_submit_proof_processed_receipts_hash_do_not_contains_key_verify_proo
                 },
             },
             transaction_receipt_hash: types::H256::zero(),
-            merkle_proof_of_receipt: types::ReceiptMerkleProof {
-                proof: vec![],
-                transaction_index: 0,
-            },
+            merkle_proof_of_receipt: Default::default(),
         };
         let serialized_proof = serde_json::to_string(&proof).unwrap();
 
@@ -314,8 +318,7 @@ pub fn test_submit_proof_processed_receipts_hash_do_not_contains_key_verify_proo
         assert_eq!(block_header.number, 8652100);
 
         let receipts = common::load_receipts(include_str!("./data/goerli/receipts_8652100.json"));
-        let merkle_proof_of_receipt =
-            types::ReceiptMerkleProof::from_transactions(receipts.clone(), 0);
+        let merkle_proof_of_receipt = create_proof(&receipts, 0);
 
         let proof = EventProof {
             block_header,
@@ -369,8 +372,7 @@ pub fn test_submit_proof_processed_receipts_hash_do_not_contains_key_but_not_in_
         assert_eq!(block_header.number, 8652100);
 
         let receipts = common::load_receipts(include_str!("./data/goerli/receipts_8652100.json"));
-        let merkle_proof_of_receipt =
-            types::ReceiptMerkleProof::from_transactions(receipts.clone(), 0);
+        let merkle_proof_of_receipt = create_proof(&receipts, 0);
 
         let proof = EventProof {
             block_header,
@@ -465,8 +467,7 @@ pub fn test_submit_proof_processed_receipts_hash_contains_key() {
         assert_eq!(block_header.number, 8652100);
 
         let receipts = common::load_receipts(include_str!("./data/goerli/receipts_8652100.json"));
-        let merkle_proof_of_receipt =
-            types::ReceiptMerkleProof::from_transactions(receipts.clone(), 0);
+        let merkle_proof_of_receipt = create_proof(&receipts, 0);
 
         let proof = EventProof {
             block_header,

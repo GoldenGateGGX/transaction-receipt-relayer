@@ -14,7 +14,6 @@ documentation = "https://docs.rs/cita_trie"
 [dependencies]
 alloy-rlp.workspace = true
 types.workspace = true
-hasher = { workspace = true, features = ["hash-keccak"] }
 serde.workspace = true
 rlp = "0.5"
 
@@ -26,6 +25,9 @@ criterion = "0.3"
 ethereum-types = "0.14"
 uuid = { version = "1.1", features = ["serde", "v4"] }
 cita_trie.workspace = true
+ethers.workspace = true
+serde_json.workspace = true
+hasher = { workspace = true, features = ["hash-keccak"] }
 
 [[bench]]
 name = "trie"

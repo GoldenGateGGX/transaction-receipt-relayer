@@ -1,4 +1,5 @@
-use types::{EventProof, MerkleProof, H256};
+use merkle_generator::IterativeTrie;
+use types::{EventProof, H256};
 
 mod common;
 
@@ -8,9 +9,14 @@ fn merkle_proof_test(test_block: &str, test_block_receipts: &str) {
     assert_eq!(hash, block_hash);
 
     let receipts = common::load_receipts(test_block_receipts);
+    let mut trie = merkle_generator::PatriciaTrie::new();
+    receipts.iter().enumerate().for_each(|(i, receipt)| {
+        trie.insert(alloy_rlp::encode(i), alloy_rlp::encode(receipt));
+    });
 
     for (i, receipt) in receipts.iter().enumerate() {
-        let proof = MerkleProof::from_transactions(receipts.clone(), i);
+        let key = alloy_rlp::encode(i);
+        let proof = trie.merkle_proof(key);
         let hash = H256::hash(receipt);
         let proof = EventProof {
             block_hash,
