@@ -1,44 +1,162 @@
-#[derive(Debug, Clone)]
+use std::cmp::min;
+
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Nibbles {
-    /// The inner representation of the nibble sequence.
-    pub hex_data: Vec<u8>,
+    hex_data: Vec<u8>,
 }
 
 impl Nibbles {
-    pub fn new(raw: Vec<u8>) -> Self {
+    pub fn from_hex(hex: Vec<u8>) -> Self {
+        Nibbles { hex_data: hex }
+    }
+
+    pub fn from_raw(raw: Vec<u8>, is_leaf: bool) -> Self {
         let mut hex_data = vec![];
         for item in raw.into_iter() {
             hex_data.push(item / 16);
             hex_data.push(item % 16);
         }
-
+        if is_leaf {
+            hex_data.push(16);
+        }
         Nibbles { hex_data }
     }
 
-    pub fn from_hex(hex_data: Vec<u8>) -> Self {
-        Nibbles { hex_data }
-    }
+    pub fn from_compact(compact: Vec<u8>) -> Self {
+        let mut hex = vec![];
+        let flag = compact[0];
 
-    pub fn encode_path_leaf(&self, is_leaf: bool) -> Vec<u8> {
-        let mut encoded = vec![0u8; self.hex_data.len() / 2 + 1];
-        let odd_nibbles = self.hex_data.len() % 2 != 0;
-
-        // Set the first byte of the encoded vector.
-        encoded[0] = match (is_leaf, odd_nibbles) {
-            (true, true) => 0x30 | self.hex_data[0],
-            (true, false) => 0x20,
-            (false, true) => 0x10 | self.hex_data[0],
-            (false, false) => 0x00,
-        };
-
-        let mut nibble_idx = if odd_nibbles { 1 } else { 0 };
-        for byte in encoded.iter_mut().skip(1) {
-            *byte = (self.hex_data[nibble_idx] << 4) + self.hex_data[nibble_idx + 1];
-            nibble_idx += 2;
+        let mut is_leaf = false;
+        match flag >> 4 {
+            0x0 => {}
+            0x1 => hex.push(flag % 16),
+            0x2 => is_leaf = true,
+            0x3 => {
+                is_leaf = true;
+                hex.push(flag % 16);
+            }
+            _ => panic!("invalid data"),
         }
 
-        encoded
+        for item in &compact[1..] {
+            hex.push(item / 16);
+            hex.push(item % 16);
+        }
+        if is_leaf {
+            hex.push(16);
+        }
+
+        Nibbles { hex_data: hex }
+    }
+
+    pub fn is_leaf(&self) -> bool {
+        self.hex_data[self.hex_data.len() - 1] == 16
+    }
+
+    pub fn encode_compact(&self) -> Vec<u8> {
+        let mut compact = vec![];
+        let is_leaf = self.is_leaf();
+        let mut hex = if is_leaf {
+            &self.hex_data[0..self.hex_data.len() - 1]
+        } else {
+            &self.hex_data[0..]
+        };
+        // node type    path length    |    prefix    hexchar
+        // --------------------------------------------------
+        // extension    even           |    0000      0x0
+        // extension    odd            |    0001      0x1
+        // leaf         even           |    0010      0x2
+        // leaf         odd            |    0011      0x3
+        let v = if hex.len() % 2 == 1 {
+            let v = 0x10 + hex[0];
+            hex = &hex[1..];
+            v
+        } else {
+            0x00
+        };
+
+        compact.push(v + if is_leaf { 0x20 } else { 0x00 });
+        for i in 0..(hex.len() / 2) {
+            compact.push((hex[i * 2] * 16) + (hex[i * 2 + 1]));
+        }
+
+        compact
+    }
+
+    pub fn encode_raw(&self) -> (Vec<u8>, bool) {
+        let mut raw = vec![];
+        let is_leaf = self.is_leaf();
+        let hex = if is_leaf {
+            &self.hex_data[0..self.hex_data.len() - 1]
+        } else {
+            &self.hex_data[0..]
+        };
+
+        for i in 0..(hex.len() / 2) {
+            raw.push((hex[i * 2] * 16) + (hex[i * 2 + 1]));
+        }
+
+        (raw, is_leaf)
+    }
+
+    pub fn len(&self) -> usize {
+        self.hex_data.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn at(&self, i: usize) -> usize {
+        self.hex_data[i] as usize
+    }
+
+    pub fn common_prefix(&self, other_partial: &Nibbles) -> usize {
+        let s = min(self.len(), other_partial.len());
+        let mut i = 0usize;
+        while i < s {
+            if self.at(i) != other_partial.at(i) {
+                break;
+            }
+            i += 1;
+        }
+        i
+    }
+
+    pub fn offset(&self, index: usize) -> Nibbles {
+        self.slice(index, self.hex_data.len())
+    }
+
+    pub fn slice(&self, start: usize, end: usize) -> Nibbles {
+        Nibbles::from_hex(self.hex_data[start..end].to_vec())
+    }
+
+    pub fn get_data(&self) -> &[u8] {
+        &self.hex_data
+    }
+
+    pub fn join(&self, b: &Nibbles) -> Nibbles {
+        let mut hex_data = vec![];
+        hex_data.extend_from_slice(self.get_data());
+        hex_data.extend_from_slice(b.get_data());
+        Nibbles::from_hex(hex_data)
+    }
+
+    pub fn extend(&mut self, b: &Nibbles) {
+        self.hex_data.extend_from_slice(b.get_data());
+    }
+
+    pub fn truncate(&mut self, len: usize) {
+        self.hex_data.truncate(len)
+    }
+
+    pub fn pop(&mut self) -> Option<u8> {
+        self.hex_data.pop()
+    }
+
+    pub fn push(&mut self, e: u8) {
+        self.hex_data.push(e)
     }
 }
 
@@ -49,22 +167,32 @@ mod tests {
     use crate::receipt::trie::nibble::Nibbles;
 
     #[test]
+    fn test_nibble() {
+        let n = Nibbles::from_raw(b"key1".to_vec(), true);
+        let compact = n.encode_compact();
+        let n2 = Nibbles::from_compact(compact);
+        let (raw, is_leaf) = n2.encode_raw();
+        assert!(is_leaf);
+        assert_eq!(raw, b"key1");
+    }
+
+    #[test]
     fn encode_leaf_node_nibble() {
-        let nibble = Nibbles {
-            hex_data: hex!("0604060f").into(),
-        };
-        let encoded = nibble.encode_path_leaf(true);
+        let mut input = hex!("0604060f").to_vec();
+        input.push(16);
+        let nibble = Nibbles::from_hex(input);
+        let encoded = nibble.encode_compact();
         let expected = hex!("20646f").to_vec();
         assert_eq!(encoded, expected);
     }
 
     #[test]
     fn hashed_regression() {
-        let nibbles = hex!("05010406040a040203030f010805020b050c04070003070e0909070f010b0a0805020301070c0a0902040b0f000f0006040a04050f020b090701000a0a040b");
-        let nibbles = Nibbles {
-            hex_data: nibbles.to_vec(),
-        };
-        let path = nibbles.encode_path_leaf(true);
+        let mut nibbles = hex!("05010406040a040203030f010805020b050c04070003070e0909070f010b0a0805020301070c0a0902040b0f000f0006040a04050f020b090701000a0a040b").to_vec();
+        nibbles.push(16);
+
+        let nibbles = Nibbles::from_hex(nibbles.to_vec());
+        let path = nibbles.encode_compact();
         let expected = hex!("351464a4233f1852b5c47037e997f1ba852317ca924bf0f064a45f2b9710aa4b");
         assert_eq!(path, expected);
     }

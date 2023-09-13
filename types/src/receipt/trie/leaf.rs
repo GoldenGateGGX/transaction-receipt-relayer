@@ -16,7 +16,7 @@ impl Leaf {
 
     pub fn from_transaction_receipt(key: Nibbles, value: TransactionReceipt) -> Self {
         Self {
-            key: key.encode_path_leaf(true),
+            key: key.encode_compact(),
             value: alloy_rlp::encode(value),
         }
     }
@@ -80,7 +80,8 @@ mod tests {
         let mut receipt_encoded = vec![];
         receipt.encode(&mut receipt_encoded);
 
-        let our_leaf = Leaf::from_transaction_receipt(Nibbles::new(key.clone()), receipt);
+        let our_leaf =
+            Leaf::from_transaction_receipt(Nibbles::from_raw(key.clone(), true), receipt);
 
         let mut our_leaf_encoded = vec![];
         our_leaf.encode(&mut our_leaf_encoded);

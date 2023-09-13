@@ -4,6 +4,7 @@ members = ["relayer", "types", "pallet", "merkle"]
 
 [workspace.package]
 authors = ["Golden Gate"]
+version = "0.1.0"
 edition = "2021"
 repository = "https://github.com/ggxchain/transaction-receipt-relayer"
 
@@ -42,12 +43,8 @@ serde-big-array = { version = "0.5.0", default-features = false }
 ethbloom = { version = "0.13.0", default-features = false }
 toml = "0.7"
 tempfile = "3.8"
+rand = "0.7"
 
-cita_trie = { git = "https://github.com/ggxchain/cita-trie.git", branch = "cita-trie-extended-pub" }
-hasher = "0.1"
-
-types = { path = "types", default-features = false }
-merkle-generator = { path = "merkle" }
 
 # Substrate FRAME
 frame-support = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
@@ -67,6 +64,11 @@ webb-proposals = { git = "https://github.com/webb-tools/webb-rs.git", default-fe
     "evm",
 ], rev = "2cd947558cedbd29a1d26f650e3de855f6380b9f" }
 
+cita_trie = { git = "https://github.com/ggxchain/cita-trie.git", branch = "cita-trie-extended-pub" }
+hasher = "0.1"
+
+types = { path = "types", default-features = false }
+merkle-generator = { path = "merkle" }
 
 [patch."https://github.com/a16z/helios.git"]
 helios = { git = "https://github.com/obsessed-cake/helios.git", branch = "bump-max-supported-logs-number" }

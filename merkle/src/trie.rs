@@ -3,9 +3,8 @@ use std::convert::TryInto;
 use std::rc::Rc;
 
 use alloy_rlp::EMPTY_STRING_CODE;
-use types::{MerkleProof, MerkleProofNode, H256};
+use types::{MerkleProof, MerkleProofNode, Nibbles, H256};
 
-use crate::nibbles::Nibbles;
 use crate::node::{empty_children, BranchNode, Node};
 
 pub trait IterativeTrie {
@@ -397,13 +396,13 @@ impl PatriciaTrie {
                 }
                 Node::Extension(ext) => {
                     let borrow_ext = ext.borrow();
-                    let extension = types::ExtensionNode {
-                        prefix: borrow_ext.prefix.encode_compact(),
-                        pointer: H256::from_slice(&match &stack[counter + 1] {
+                    let extension = types::ExtensionNode::new(
+                        borrow_ext.prefix.clone(),
+                        H256::from_slice(&match &stack[counter + 1] {
                             NodeOrHash::Node { .. } => unreachable!(),
                             NodeOrHash::Hash(hash) => hash.clone(),
                         }),
-                    };
+                    );
                     stack[counter] = NodeOrHash::Hash(alloy_rlp::encode(&extension).to_vec());
                     stack.pop();
                     counter = parent;

@@ -102,7 +102,8 @@ mod tests {
                 let mut receipt_encoded = vec![];
                 receipt.encode(&mut receipt_encoded);
 
-                let leaf = Leaf::from_transaction_receipt(Nibbles::new(vec![i]), receipt);
+                let leaf =
+                    Leaf::from_transaction_receipt(Nibbles::from_raw(vec![i], true), receipt);
                 let mut buffer = vec![];
                 leaf.encode(&mut buffer);
                 branch_node.branches[i as usize] = Some(H256(buffer[..32].try_into().unwrap()));

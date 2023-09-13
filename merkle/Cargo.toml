@@ -1,34 +1,20 @@
 [package]
 name = "merkle-generator"
-version = "4.0.0"
-authors = ["yejiayu <yejiayu.fe@gmail.com>"]
-description = "Modified Patricia Tree (aka Trie)."
-license = "Apache-2.0"
-edition = "2018"
-readme = "README.md"
-keywords = ["patricia", "mpt", "evm", "trie", "ethereum"]
-repository = "https://github.com/cryptape/cita-trie"
-homepage = "https://github.com/cryptape/cita-trie"
-documentation = "https://docs.rs/cita_trie"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+repository.workspace = true
 
 [dependencies]
 alloy-rlp.workspace = true
 types.workspace = true
 serde.workspace = true
-rlp = "0.5"
 
 
 [dev-dependencies]
-rand = "0.7"
-hex = "0.4"
-criterion = "0.3"
-ethereum-types = "0.14"
-uuid = { version = "1.1", features = ["serde", "v4"] }
+rand.workspace = true
+hex.workspace = true
 cita_trie.workspace = true
 ethers.workspace = true
 serde_json.workspace = true
 hasher = { workspace = true, features = ["hash-keccak"] }
-
-[[bench]]
-name = "trie"
-harness = false

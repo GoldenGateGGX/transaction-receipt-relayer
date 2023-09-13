@@ -7,14 +7,14 @@ use super::nibble::Nibbles;
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExtensionNode {
-    pub prefix: Vec<u8>,
-    pub pointer: H256,
+    prefix: Vec<u8>,
+    pointer: H256,
 }
 
 impl ExtensionNode {
     pub fn new(prefix: Nibbles, pointer: H256) -> Self {
         Self {
-            prefix: prefix.encode_path_leaf(false),
+            prefix: prefix.encode_compact(),
             pointer,
         }
     }
@@ -76,11 +76,12 @@ mod tests {
         let mut receipt_encoded = vec![];
         receipt.encode(&mut receipt_encoded);
 
-        let our_leaf = Leaf::from_transaction_receipt(Nibbles::new(leaf_key.clone()), receipt);
+        let our_leaf =
+            Leaf::from_transaction_receipt(Nibbles::from_raw(leaf_key.clone(), true), receipt);
         let leaf_encoded = alloy_rlp::encode(our_leaf);
 
         let node = ExtensionNode::new(
-            Nibbles::new(prefix.clone()),
+            Nibbles::from_raw(prefix.clone(), false),
             H256(leaf_encoded[..32].try_into().unwrap()),
         );
 

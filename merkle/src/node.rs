@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::nibbles::Nibbles;
+use types::Nibbles;
 
 #[derive(Debug, Clone)]
 pub enum Node {

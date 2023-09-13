@@ -75,18 +75,17 @@ impl MerkleProof {
         // The final hash is the Merkle root.
 
         // Full nibble path of the leaf node.
-        let key = Nibbles::new(self.key.clone());
-        let mut key_slice = key.hex_data.as_slice();
+        let mut key = Nibbles::from_raw(self.key.clone(), true);
 
         for node in self.proof.iter() {
             match node {
-                MerkleProofNode::ExtensionNode { prefix } => key_slice = &key_slice[prefix.len()..],
-                MerkleProofNode::BranchNode { .. } => key_slice = &key_slice[1..],
+                MerkleProofNode::ExtensionNode { prefix } => key = key.offset(prefix.len()),
+                MerkleProofNode::BranchNode { .. } => key = key.offset(1),
             }
         }
 
         let mut hash = H256::from_slice(&alloy_rlp::encode(&Leaf::from_transaction_receipt(
-            Nibbles::from_hex(key_slice.to_vec()),
+            key,
             leaf.clone(),
         )));
 
