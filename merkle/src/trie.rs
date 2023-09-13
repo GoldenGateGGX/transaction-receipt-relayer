@@ -334,17 +334,17 @@ impl PatriciaTrie {
                 }
                 Node::Leaf(leaf) => {
                     let borrow_leaf = leaf.borrow();
-                    let leaf = types::Leaf::from_raw(
-                        borrow_leaf.key.encode_compact(),
-                        borrow_leaf.value.clone(),
-                    );
-                    let hash = alloy_rlp::encode(leaf).to_vec();
+                    let leaf = types::encoding::LeafEncoder {
+                        key: &borrow_leaf.key.encode_compact(),
+                        value: &borrow_leaf.value,
+                    };
+                    let hash = alloy_rlp::encode(leaf);
 
                     stack[counter] = NodeOrHash::Hash(hash);
                     counter = parent;
                 }
                 Node::Branch(branch) if depth < 16 => {
-                    let borrow_branch = branch.borrow();
+                    let borrow_branch: std::cell::Ref<'_, BranchNode> = branch.borrow();
                     stack.push(NodeOrHash::Node {
                         node: borrow_branch.children[depth].clone(),
                         depth: 0,
@@ -377,7 +377,7 @@ impl PatriciaTrie {
                             .unwrap(),
                         value: borrow_branch.value.clone(),
                     };
-                    stack[counter] = NodeOrHash::Hash(alloy_rlp::encode(&branch).to_vec());
+                    stack[counter] = NodeOrHash::Hash(alloy_rlp::encode(&branch));
                     counter = parent;
                 }
                 Node::Extension(ext) if depth == 0 => {
@@ -403,7 +403,7 @@ impl PatriciaTrie {
                             NodeOrHash::Hash(hash) => hash.clone(),
                         }),
                     );
-                    stack[counter] = NodeOrHash::Hash(alloy_rlp::encode(&extension).to_vec());
+                    stack[counter] = NodeOrHash::Hash(alloy_rlp::encode(&extension));
                     stack.pop();
                     counter = parent;
                 }

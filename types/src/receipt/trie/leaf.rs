@@ -22,21 +22,44 @@ impl Leaf {
     }
 }
 
-impl Leaf {
+impl Encodable for Leaf {
+    fn encode(&self, result: &mut dyn BufMut) {
+        LeafEncoder {
+            key: &self.key,
+            value: &self.value,
+        }
+        .encode(result);
+    }
+
+    fn length(&self) -> usize {
+        LeafEncoder {
+            key: &self.key,
+            value: &self.value,
+        }
+        .length()
+    }
+}
+
+pub struct LeafEncoder<'a> {
+    pub key: &'a [u8],
+    pub value: &'a [u8],
+}
+
+impl<'a> LeafEncoder<'a> {
     fn header(&self) -> alloy_rlp::Header {
         alloy_rlp::Header {
-            payload_length: self.key.as_slice().length() + self.value.as_slice().length(),
+            payload_length: self.key.length() + self.value.length(),
             list: true,
         }
     }
 }
 
-impl Encodable for Leaf {
+impl<'a> Encodable for LeafEncoder<'a> {
     fn encode(&self, result: &mut dyn BufMut) {
         let header = self.header();
         let mut out = Vec::with_capacity(header.payload_length);
         let out_buf = &mut out;
-        encode!(out_buf, header, self.key.as_slice(), self.value.as_slice());
+        encode!(out_buf, header, self.key, self.value);
 
         crate::encode::rlp_node(&out, result);
     }

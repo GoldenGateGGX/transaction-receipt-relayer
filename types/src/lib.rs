@@ -15,6 +15,10 @@ pub use bloom::Bloom;
 
 pub(crate) mod encode;
 
+pub mod encoding {
+    pub use crate::receipt::LeafEncoder;
+}
+
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct EventProof {
