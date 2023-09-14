@@ -322,7 +322,7 @@ impl PatriciaTrie {
             Hash(Vec<u8>),
         }
 
-        let mut stack = vec![(NodeOrHash::Node { node: n }, 0 as usize, 0 as usize)];
+        let mut stack = vec![(NodeOrHash::Node { node: n }, 0, 0)];
         let mut counter = 0;
         loop {
             let node_or_hash = &stack[counter];
