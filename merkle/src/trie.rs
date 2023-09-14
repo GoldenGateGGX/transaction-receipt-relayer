@@ -151,7 +151,7 @@ impl PatriciaTrie {
 
     fn insert_at_iterative(n: Node, partial_key: Nibbles, value: Vec<u8>) -> Node {
         let mut queue = vec![n];
-        let mut partial = partial_key.clone();
+        let mut partial = Clone::clone(&partial_key);
 
         // Part 1: Find place to insert, or replace value.
         // Meanwhile, nodes can be replaced with branches or extensions.
