@@ -26,7 +26,7 @@ pub enum MerkleProofNode {
     ///
     /// [1]: https://ethereum.github.io/yellowpaper/paper.pdf
     /// [2]: https://github.com/paradigmxyz/reth/blob/8c70524fc6031dcc268fd771797f35d6229848e7/crates/primitives/src/trie/nodes/extension.rs#L11-L16
-    ExtensionNode { prefix: Vec<u8> },
+    ExtensionNode { prefix: Nibbles },
 
     /// A branch node in the Patricia Merkle Trie.
     ///
@@ -93,7 +93,7 @@ impl MerkleProof {
             match node {
                 MerkleProofNode::ExtensionNode { prefix } => {
                     hash = H256::from_slice(&alloy_rlp::encode(&ExtensionNode::new(
-                        Nibbles::from_hex(prefix.to_vec()),
+                        prefix.clone(),
                         hash,
                     )));
                 }

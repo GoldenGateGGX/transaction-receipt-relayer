@@ -289,6 +289,7 @@ impl PatriciaTrie {
         let partial = partial.len();
         let mut partial = partial_key.slice(0, partial_key.len() - partial);
 
+        // Part 2: Make links.
         // We couldn't make links over the previous loop, so we do it now.
         // Queue contains nodes from the root to the inserted/updated leaf.
         // We go from the leaf to the root, and make links. This order helps us to avoid cloning nodes.
@@ -326,6 +327,7 @@ impl PatriciaTrie {
         let mut counter = 0;
         loop {
             let node_or_hash = &stack[counter];
+            // If we hashed everything, we are done.
             let (n, depth, parent) = (
                 match &node_or_hash.0 {
                     NodeOrHash::Node { node } => node,
@@ -342,10 +344,12 @@ impl PatriciaTrie {
             );
 
             match n.clone() {
+                // We can safely replace node with empty node hash
                 Node::Empty => {
                     stack[counter].0 = NodeOrHash::Hash(vec![EMPTY_STRING_CODE]);
                     counter = parent;
                 }
+                // Hash leaf node and replace it with hash
                 Node::Leaf(leaf) => {
                     let borrow_leaf = leaf.borrow();
                     let leaf = types::encoding::LeafEncoder {
@@ -357,6 +361,8 @@ impl PatriciaTrie {
                     stack[counter].0 = NodeOrHash::Hash(hash);
                     counter = parent;
                 }
+                // It means we haven't processed all the children yet.
+                // We push the child to the stack and increase the depth counter.
                 Node::Branch(branch) if depth < 16 => {
                     let borrow_branch: std::cell::Ref<'_, BranchNode> = branch.borrow();
                     stack.push((
@@ -369,6 +375,7 @@ impl PatriciaTrie {
                     stack[counter].1 += 1;
                     counter = stack.len() - 1;
                 }
+                // We have processed all the children, so we can combine and hash them.
                 Node::Branch(branch) => {
                     let borrow_branch = branch.borrow();
                     let branch = types::BranchNode {
@@ -392,6 +399,7 @@ impl PatriciaTrie {
                     stack[counter].0 = NodeOrHash::Hash(alloy_rlp::encode(&branch));
                     counter = parent;
                 }
+                // It means we haven't processed the child yet. We push the child to the stack and increase the depth counter.
                 Node::Extension(ext) if depth == 0 => {
                     let borrow_ext = ext.borrow();
                     stack.push((
@@ -404,6 +412,7 @@ impl PatriciaTrie {
                     stack[counter].1 += 1;
                     counter = stack.len() - 1;
                 }
+                // We have processed the child, so we can hash it.
                 Node::Extension(ext) => {
                     let borrow_ext = ext.borrow();
                     let extension = types::ExtensionNode::new(
@@ -419,8 +428,10 @@ impl PatriciaTrie {
                 }
             }
         }
+        // I expect that we have only one element in the stack as we combined everything.
         assert!(stack.len() == 1);
 
+        // We return the root hash.
         match stack.pop() {
             Some((NodeOrHash::Hash(hash), _, _)) => hash,
             _ => unreachable!(),
@@ -435,6 +446,9 @@ impl IterativeTrie for PatriciaTrie {
             PatriciaTrie::insert_at_iterative(root, Nibbles::from_raw(key, true), value.to_vec());
     }
 
+    /// Creates a proof for the given key.
+    /// The proof is a list of nodes that are needed to prove that the key is in the trie.
+    /// The nodes are on the path from the root to the leaf. All other subtrees are hashed.
     fn merkle_proof(&self, proving_key: Vec<u8>) -> MerkleProof {
         let mut key = Nibbles::from_raw(proving_key.clone(), true);
 
@@ -442,21 +456,17 @@ impl IterativeTrie for PatriciaTrie {
         let mut proof = vec![];
         while let Some(node) = processing_queue.pop() {
             match node {
+                // If we encounter a extension node, we skip common prefix and continue processing it's child
                 Node::Extension(node) => {
                     let node = node.borrow();
-                    let prefix = node.prefix.get_data();
 
-                    // there is also char that tells either it's leaf or not, but we don't need it
-                    let prefix = if node.prefix.is_leaf() {
-                        prefix[..prefix.len() - 1].to_vec()
-                    } else {
-                        prefix.to_vec()
-                    };
-
-                    key = key.offset(prefix.len());
-                    proof.push(MerkleProofNode::ExtensionNode { prefix });
+                    key = key.offset(key.common_prefix(&node.prefix));
+                    proof.push(MerkleProofNode::ExtensionNode {
+                        prefix: node.prefix.clone(),
+                    });
                     processing_queue.push(node.node.clone());
                 }
+                // if we encounter a branch node, we have to hash all the children except the one on the path to the leaf
                 Node::Branch(node) => {
                     let node = node.borrow();
                     let branches = node
@@ -470,9 +480,9 @@ impl IterativeTrie for PatriciaTrie {
                                 return None;
                             }
 
-                            // Encode subtree using cita as it's not on the path to the leaf
+                            // Encode subtree it's not on the path to the leaf
                             let encoded_node = self.encode_node(node.clone());
-                            // Cita trie will return a single byte if the node is empty
+                            // It will return a single byte if the node is empty
                             if encoded_node.len() == 1 {
                                 None
                             } else {
