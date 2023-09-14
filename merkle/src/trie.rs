@@ -168,7 +168,7 @@ impl PatriciaTrie {
                 borrow_node if matches!(borrow_node, Node::Leaf(_)) => {
                     // We will replace the leaf with a branch or extension most likely.
                     let leaf = std::mem::take(borrow_node);
-                    let leaf = leaf.into_leaf().unwrap();
+                    let leaf = leaf.into_leaf().expect("checked above;");
 
                     let mut borrow_leaf = leaf.borrow_mut();
 
@@ -231,7 +231,7 @@ impl PatriciaTrie {
                 }
                 borrow_node if matches!(borrow_node, Node::Extension(_)) => {
                     let ext = std::mem::take(borrow_node);
-                    let ext = ext.into_extension().unwrap();
+                    let ext = ext.into_extension().expect("checked above;");
 
                     let mut borrow_ext = ext.borrow_mut();
 
@@ -386,7 +386,7 @@ impl PatriciaTrie {
                             })
                             .collect::<Vec<_>>()[..16]
                             .try_into()
-                            .unwrap(),
+                            .expect("We always have 16 branches"),
                         value: borrow_branch.value.clone(),
                     };
                     stack[counter].0 = NodeOrHash::Hash(alloy_rlp::encode(&branch));
@@ -482,7 +482,11 @@ impl IterativeTrie for PatriciaTrie {
                         .collect::<Vec<_>>();
                     let next = node.children[key.at(0)].clone();
                     proof.push(MerkleProofNode::BranchNode {
-                        branches: Box::new(branches.try_into().unwrap()),
+                        branches: Box::new(
+                            branches
+                                .try_into()
+                                .expect("branches are 16 long, so this should never fail"),
+                        ),
                         index: key.at(0) as u8,
                         value: node.value.clone(),
                     });
