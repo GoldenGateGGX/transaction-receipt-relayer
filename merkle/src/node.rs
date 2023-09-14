@@ -3,8 +3,9 @@ use std::rc::Rc;
 
 use types::Nibbles;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum Node {
+    #[default]
     Empty,
     Leaf(Rc<RefCell<LeafNode>>),
     Extension(Rc<RefCell<ExtensionNode>>),
@@ -25,6 +26,20 @@ impl Node {
     pub fn from_extension(prefix: Nibbles, node: Node) -> Self {
         let ext = Rc::new(RefCell::new(ExtensionNode { prefix, node }));
         Node::Extension(ext)
+    }
+
+    pub fn into_leaf(self) -> Option<Rc<RefCell<LeafNode>>> {
+        match self {
+            Node::Leaf(leaf) => Some(leaf),
+            _ => None,
+        }
+    }
+
+    pub fn into_extension(self) -> Option<Rc<RefCell<ExtensionNode>>> {
+        match self {
+            Node::Extension(ext) => Some(ext),
+            _ => None,
+        }
     }
 }
 

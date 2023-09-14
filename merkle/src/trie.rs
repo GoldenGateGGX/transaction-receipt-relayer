@@ -12,7 +12,7 @@ pub trait IterativeTrie {
     fn merkle_proof(&self, key: Vec<u8>) -> MerkleProof;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PatriciaTrie {
     root: Node,
 }
@@ -140,7 +140,7 @@ impl PatriciaTrie {
         }
     }
     pub fn new() -> Self {
-        Self { root: Node::Empty }
+        Default::default()
     }
 }
 
@@ -151,27 +151,36 @@ impl PatriciaTrie {
 
     fn insert_at_iterative(n: Node, partial_key: Nibbles, value: Vec<u8>) -> Node {
         let mut queue = vec![n];
-        let mut counter = 0;
         let mut partial = partial_key.clone();
 
         // Part 1: Find place to insert, or replace value.
         // Meanwhile, nodes can be replaced with branches or extensions.
         loop {
-            match queue[counter].clone() {
+            let index = queue.len() - 1;
+            let borrow_node = &mut queue[index];
+
+            let node_to_push = match borrow_node {
                 Node::Empty => {
                     // Insert leaf node instead.
-                    queue[counter] = Node::from_leaf(partial.clone(), value);
+                    *borrow_node = Node::from_leaf(partial.clone(), value);
                     break;
                 }
-                Node::Leaf(leaf) => {
+                borrow_node if matches!(borrow_node, Node::Leaf(_)) => {
+                    // We will replace the leaf with a branch or extension most likely.
+                    let leaf = std::mem::take(borrow_node);
+                    let leaf = leaf.into_leaf().unwrap();
+
                     let mut borrow_leaf = leaf.borrow_mut();
 
-                    let old_partial = &borrow_leaf.key;
-                    let match_index = partial.common_prefix(old_partial);
+                    let old_partial = std::mem::take(&mut borrow_leaf.key);
+                    let match_index = partial.common_prefix(&old_partial);
 
-                    // Key is the same, replace value.
+                    // Key is the same, replace value. But we need to reconstruct it as we took it out.
                     if match_index == old_partial.len() {
                         borrow_leaf.value = value;
+                        borrow_leaf.key = old_partial;
+                        drop(borrow_leaf);
+                        *borrow_node = Node::Leaf(leaf);
                         break;
                     }
 
@@ -184,7 +193,7 @@ impl PatriciaTrie {
                     // Insert old leaf.
                     let n = Node::from_leaf(
                         old_partial.offset(match_index + 1),
-                        borrow_leaf.value.clone(),
+                        std::mem::take(&mut borrow_leaf.value),
                     );
 
                     branch.insert(old_partial.at(match_index), n);
@@ -195,16 +204,17 @@ impl PatriciaTrie {
 
                     // Replace current node with branch as they don't have a common prefix.
                     if match_index == 0 {
-                        queue[counter] = Node::Branch(Rc::new(RefCell::new(branch)));
+                        *borrow_node = Node::Branch(Rc::new(RefCell::new(branch)));
                     } else {
                         // Replace current node with extension.
-                        queue[counter] = Node::from_extension(
+                        *borrow_node = Node::from_extension(
                             partial.slice(0, match_index),
                             Node::Branch(Rc::new(RefCell::new(branch))),
                         );
                     }
                     break;
                 }
+                Node::Leaf(_) => unreachable!(),
                 Node::Branch(branch) => {
                     let mut borrow_branch = branch.borrow_mut();
 
@@ -217,15 +227,17 @@ impl PatriciaTrie {
                     // Get child node on the path and push it to the queue.
                     let child = borrow_branch.children[partial.at(0)].clone();
                     partial = partial.offset(1);
-                    queue.push(child);
-                    counter += 1;
+                    Some(child)
                 }
-                Node::Extension(ext) => {
+                borrow_node if matches!(borrow_node, Node::Extension(_)) => {
+                    let ext = std::mem::take(borrow_node);
+                    let ext = ext.into_extension().unwrap();
+
                     let mut borrow_ext = ext.borrow_mut();
 
-                    let prefix = &borrow_ext.prefix;
+                    let prefix = std::mem::take(&mut borrow_ext.prefix);
                     let sub_node = borrow_ext.node.clone();
-                    let match_index = partial.common_prefix(prefix);
+                    let match_index = partial.common_prefix(&prefix);
 
                     // If they don't share anything, we create a branch and insert both nodes.
                     if match_index == 0 {
@@ -241,24 +253,34 @@ impl PatriciaTrie {
                                 Node::from_extension(prefix.offset(1), sub_node)
                             },
                         );
-                        let node = Node::Branch(Rc::new(RefCell::new(branch)));
-                        queue[counter] = node;
+                        *borrow_node = Node::Branch(Rc::new(RefCell::new(branch)));
+                        // We just updated this node, so we need to like re-iterate it.
+                        None
                     // If they share the whole prefix, we continue with the sub node.
                     } else if match_index == prefix.len() {
+                        borrow_ext.prefix = prefix;
+                        drop(borrow_ext);
+
                         partial = partial.offset(match_index);
-                        queue.push(sub_node);
-                        counter += 1;
+                        *borrow_node = Node::Extension(ext);
+                        Some(sub_node)
                     // If they share a part of the prefix, we adjust this node to contain same prefix, and create a new extension for the rest.
                     // This new created extension will be pushed to the queue, but on the next iteration it will be combined into branch.
                     } else {
+                        borrow_ext.prefix = prefix.slice(0, match_index);
+                        drop(borrow_ext);
+
+                        *borrow_node = Node::Extension(ext);
                         let new_ext = Node::from_extension(prefix.offset(match_index), sub_node);
                         partial = partial.offset(match_index);
-                        queue.push(new_ext);
-                        counter += 1;
-
-                        borrow_ext.prefix = prefix.slice(0, match_index);
+                        Some(new_ext)
                     }
                 }
+                Node::Extension(_) => unreachable!(),
+            };
+
+            if let Some(node) = node_to_push {
+                queue.push(node);
             }
         }
 
@@ -296,40 +318,32 @@ impl PatriciaTrie {
     pub fn encode_node(&self, n: Node) -> Vec<u8> {
         #[derive(Debug)]
         enum NodeOrHash {
-            Node {
-                node: Node,
-                depth: usize,
-                parent: usize,
-            },
+            Node { node: Node },
             Hash(Vec<u8>),
         }
 
-        let mut stack = vec![NodeOrHash::Node {
-            node: n,
-            depth: 0,
-            parent: 0,
-        }];
+        let mut stack = vec![(NodeOrHash::Node { node: n }, 0 as usize, 0 as usize)];
         let mut counter = 0;
-        while counter < stack.len() {
+        loop {
             let node_or_hash = &stack[counter];
-            let (n, depth, parent) = match node_or_hash {
-                NodeOrHash::Node {
-                    depth,
-                    node,
-                    parent,
-                } => (node.clone(), *depth, *parent),
-                NodeOrHash::Hash(_) => {
-                    if counter == 0 {
-                        break;
+            let (n, depth, parent) = (
+                match &node_or_hash.0 {
+                    NodeOrHash::Node { node } => node,
+                    NodeOrHash::Hash(_) => {
+                        if counter == 0 {
+                            break;
+                        }
+                        counter -= 1;
+                        continue;
                     }
-                    counter -= 1;
-                    continue;
-                }
-            };
+                },
+                node_or_hash.1,
+                node_or_hash.2,
+            );
 
             match n.clone() {
                 Node::Empty => {
-                    stack[counter] = NodeOrHash::Hash(vec![EMPTY_STRING_CODE]);
+                    stack[counter].0 = NodeOrHash::Hash(vec![EMPTY_STRING_CODE]);
                     counter = parent;
                 }
                 Node::Leaf(leaf) => {
@@ -340,21 +354,19 @@ impl PatriciaTrie {
                     };
                     let hash = alloy_rlp::encode(leaf);
 
-                    stack[counter] = NodeOrHash::Hash(hash);
+                    stack[counter].0 = NodeOrHash::Hash(hash);
                     counter = parent;
                 }
                 Node::Branch(branch) if depth < 16 => {
                     let borrow_branch: std::cell::Ref<'_, BranchNode> = branch.borrow();
-                    stack.push(NodeOrHash::Node {
-                        node: borrow_branch.children[depth].clone(),
-                        depth: 0,
-                        parent: counter,
-                    });
-                    stack[counter] = NodeOrHash::Node {
-                        node: n,
-                        depth: depth + 1,
-                        parent,
-                    };
+                    stack.push((
+                        NodeOrHash::Node {
+                            node: borrow_branch.children[depth].clone(),
+                        },
+                        0,
+                        counter,
+                    ));
+                    stack[counter].1 += 1;
                     counter = stack.len() - 1;
                 }
                 Node::Branch(branch) => {
@@ -362,7 +374,7 @@ impl PatriciaTrie {
                     let branch = types::BranchNode {
                         branches: stack
                             .drain(counter + 1..counter + 17)
-                            .map(|n| match n {
+                            .map(|(n, _, _)| match n {
                                 NodeOrHash::Node { .. } => unreachable!(),
                                 NodeOrHash::Hash(hash) => {
                                     if hash.len() == 1 {
@@ -377,33 +389,31 @@ impl PatriciaTrie {
                             .unwrap(),
                         value: borrow_branch.value.clone(),
                     };
-                    stack[counter] = NodeOrHash::Hash(alloy_rlp::encode(&branch));
+                    stack[counter].0 = NodeOrHash::Hash(alloy_rlp::encode(&branch));
                     counter = parent;
                 }
                 Node::Extension(ext) if depth == 0 => {
                     let borrow_ext = ext.borrow();
-                    stack.push(NodeOrHash::Node {
-                        node: borrow_ext.node.clone(),
-                        depth: 0,
-                        parent: counter,
-                    });
-                    stack[counter] = NodeOrHash::Node {
-                        node: n,
-                        depth: 1,
-                        parent,
-                    };
+                    stack.push((
+                        NodeOrHash::Node {
+                            node: borrow_ext.node.clone(),
+                        },
+                        0,
+                        counter,
+                    ));
+                    stack[counter].1 += 1;
                     counter = stack.len() - 1;
                 }
                 Node::Extension(ext) => {
                     let borrow_ext = ext.borrow();
                     let extension = types::ExtensionNode::new(
                         borrow_ext.prefix.clone(),
-                        H256::from_slice(&match &stack[counter + 1] {
+                        H256::from_slice(&match &stack[counter + 1].0 {
                             NodeOrHash::Node { .. } => unreachable!(),
                             NodeOrHash::Hash(hash) => hash.clone(),
                         }),
                     );
-                    stack[counter] = NodeOrHash::Hash(alloy_rlp::encode(&extension));
+                    stack[counter].0 = NodeOrHash::Hash(alloy_rlp::encode(&extension));
                     stack.pop();
                     counter = parent;
                 }
@@ -412,7 +422,7 @@ impl PatriciaTrie {
         assert!(stack.len() == 1);
 
         match stack.pop() {
-            Some(NodeOrHash::Hash(hash)) => hash,
+            Some((NodeOrHash::Hash(hash), _, _)) => hash,
             _ => unreachable!(),
         }
     }

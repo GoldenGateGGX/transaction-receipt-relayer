@@ -1,6 +1,6 @@
 use std::cmp::min;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Nibbles {
     hex_data: Vec<u8>,
