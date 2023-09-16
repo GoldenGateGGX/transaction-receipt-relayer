@@ -22,6 +22,7 @@ pub struct Config {
     pub server_port: Option<u64>,
 }
 
+#[derive(Debug, Clone)]
 pub struct WatchAddress {
     address: H160,
     name: String,
@@ -59,5 +60,9 @@ impl WatchAddress {
         let result = bloom.check_address(&self.address);
         log::debug!(target: "relayer::config::try_against", "Bloom filter check result {result} against {}", self.name);
         result
+    }
+
+    pub fn address(&self) -> H160 {
+        self.address
     }
 }
