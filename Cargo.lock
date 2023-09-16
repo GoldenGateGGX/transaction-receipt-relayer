@@ -1595,6 +1595,7 @@ dependencies = [
 name = "eth-transaction-receipt-relayer"
 version = "0.0.1"
 dependencies = [
+ "alloy-rlp",
  "clap",
  "env_logger",
  "envy",
@@ -1605,6 +1606,7 @@ dependencies = [
  "hex-literal",
  "log",
  "merkle-cbt",
+ "merkle-generator",
  "proptest",
  "rusqlite",
  "salvo",

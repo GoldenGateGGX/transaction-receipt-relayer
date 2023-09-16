@@ -1,26 +1,19 @@
 use std::{
-    process::exit,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+    sync::{atomic::AtomicBool, Arc},
     time::Duration,
 };
 
 use ethers::providers::Middleware;
-use ethers::{
-    providers::{Http, Provider},
-    types::Block,
-};
+use ethers::providers::{Http, Provider};
 use eyre::Result;
 use helios::{
     client::{Client as HeliosClient, ClientBuilder, FileDB},
-    config::Config as HeliosConfig,
     types::{BlockTag, ExecutionBlock},
 };
-use types::{BlockHeader, Bloom, H160, H256, U256};
+use types::{BlockHeaderWithTransaction, H256};
 
 use crate::{
+    common::*,
     config::{Config, WatchAddress},
     consts::BLOCK_AMOUNT_TO_STORE,
     db::DB,
@@ -135,7 +128,7 @@ impl Client {
             .await?
             .ok_or_else(|| eyre::eyre!("Block not found"))?;
         // push first finalized block to the queue
-        blocks_to_process.push((parse_block(block)?, H256(finalized_block.hash.0)));
+        blocks_to_process.push((convert_ethers_block(block)?, H256(finalized_block.hash.0)));
 
         let mut repeat = 0;
 
@@ -151,7 +144,7 @@ impl Client {
             };
             let tmp = execution_block.parent_hash;
             // parse block to our format
-            if let Ok(parsed_block) = parse_block(execution_block) {
+            if let Ok(parsed_block) = convert_ethers_block(execution_block) {
                 // store requested hash to verify later
                 blocks_to_process.push((parsed_block, H256(prev_block_hash.0)));
                 current_block -= 1;
@@ -171,7 +164,10 @@ impl Client {
 
     /// Process fetched blocks, check the block hash, bloom filter and store records in the database.
     /// The blocks are processed from the latest processed block + 1 to the latest block.
-    async fn process_fetched_blocks(&mut self, blocks: Vec<(BlockHeader, H256)>) -> Result<()> {
+    async fn process_fetched_blocks(
+        &mut self,
+        blocks: Vec<(BlockHeaderWithTransaction, H256)>,
+    ) -> Result<()> {
         const TARGET: &str = "relayer::client::process_fetched_blocks";
 
         if blocks.is_empty() {
@@ -182,70 +178,37 @@ impl Client {
         let mut processed_block_hash = self
             .db
             .select_latest_fetched_block_hash()?
-            .unwrap_or_else(|| blocks.last().unwrap().0.parent_hash);
-        for (block_header, block_hash) in blocks.into_iter().rev() {
+            .unwrap_or_else(|| blocks.last().unwrap().0.header.parent_hash);
+        for (block, block_hash) in blocks.into_iter().rev() {
             // First initial check that it's in order. And that the parent block hash is expected.
-            if processed_block_hash != block_header.parent_hash {
+            if processed_block_hash != block.header.parent_hash {
                 log::error!(target: TARGET, "Block parent hash mismatch");
                 return Err(eyre::eyre!("Block parent hash mismatch"));
             }
 
             // Verify block hash correctness
-            let hash = H256::hash(&block_header);
+            let hash = H256::hash(&block.header);
             if hash != block_hash {
                 log::error!(target: TARGET,"Block hash mismatch");
                 return Err(eyre::eyre!("Block hash mismatch"));
             }
 
-            let block_number = block_header.number;
+            let block_number = block.header.number;
 
             // Check the bloom filter over expected contracts
             let should_process = self
                 .watch_addresses
                 .iter()
-                .any(|address| address.try_against(&block_header.logs_bloom));
+                .any(|address| address.try_against(&block.header.logs_bloom));
 
             // Store block in the database
             self.db
-                .insert_block(block_number, block_hash, block_header, should_process)?;
+                .insert_block(block_number, block_hash, block, should_process)?;
 
             processed_block_hash = hash;
         }
         Ok(())
     }
-}
-
-fn parse_block(execution_block: Block<ethers::types::H256>) -> Result<BlockHeader> {
-    let mut bloom = [0u8; 256];
-    let err = || eyre::eyre!("Failed to parse block");
-    bloom.copy_from_slice(&execution_block.logs_bloom.ok_or_else(err)?.0);
-    let block_header = types::BlockHeader {
-        parent_hash: H256(execution_block.parent_hash.0),
-        beneficiary: H160(execution_block.author.ok_or_else(err)?.0),
-        state_root: H256(execution_block.state_root.0),
-        transactions_root: H256(execution_block.transactions_root.0),
-        receipts_root: H256(execution_block.receipts_root.0),
-        withdrawals_root: execution_block.withdrawals_root.map(|r| H256(r.0)),
-        logs_bloom: Bloom::new(bloom),
-        number: execution_block.number.ok_or_else(err)?.as_u64(),
-        gas_limit: execution_block.gas_limit.as_u64(),
-        gas_used: execution_block.gas_used.as_u64(),
-        timestamp: execution_block.timestamp.as_u64(),
-        mix_hash: H256(execution_block.mix_hash.ok_or_else(err)?.0),
-        base_fee_per_gas: Some(execution_block.base_fee_per_gas.ok_or_else(err)?.as_u64()),
-        extra_data: execution_block.extra_data.0.to_vec(),
-
-        // Defaults
-        ommers_hash: H256(execution_block.uncles_hash.0),
-        difficulty: U256(execution_block.difficulty.into()),
-        nonce: execution_block.nonce.ok_or_else(err)?.to_low_u64_be(),
-
-        // TODO: add conversion once ExecutionPayload has 4844 fields
-        blob_gas_used: None,
-        excess_blob_gas: None,
-    };
-
-    Ok(block_header)
 }
 
 async fn repeat_cycle(repeat_counter: u64) -> Result<u64> {
@@ -257,27 +220,5 @@ async fn repeat_cycle(repeat_counter: u64) -> Result<u64> {
     } else {
         log::error!(target: "relayer::client::repeat_cycle","Multiple retries happened. Exiting.");
         Err(eyre::eyre!("Multiple retries happened"))
-    }
-}
-
-fn prepare_config(config: &Config) -> HeliosConfig {
-    let mut helios_config: HeliosConfig = HeliosConfig::from_file(
-        &config.helios_config_path,
-        &config.network,
-        &Default::default(),
-    );
-
-    // TODO: should be fetched from DB or take default from config
-    helios_config.checkpoint = Some(
-        hex::decode("e6894aa5f8a0a6b3a99931e9d6dc3fa5f1bb9f6f65baa1fcd1312e9a4cac60ad").unwrap(),
-    );
-
-    helios_config
-}
-
-fn exit_if_term(term: Arc<AtomicBool>) {
-    if term.load(Ordering::Relaxed) {
-        log::info!(target: "relayer::client","caught SIGTERM");
-        exit(0);
     }
 }

@@ -8,7 +8,7 @@ mod primitives;
 pub use primitives::{H160, H256, H64, U256};
 
 mod block_header;
-pub use block_header::BlockHeader;
+pub use block_header::{BlockHeader, BlockHeaderWithTransaction};
 
 mod bloom;
 pub use bloom::Bloom;

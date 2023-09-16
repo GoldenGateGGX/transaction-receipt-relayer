@@ -18,6 +18,18 @@ pub enum TxType {
     EIP4844 = 3_isize,
 }
 
+impl TxType {
+    pub fn from_u64(value: u64) -> Option<Self> {
+        match value {
+            0 => Some(Self::Legacy),
+            1 => Some(Self::EIP2930),
+            2 => Some(Self::EIP1559),
+            3 => Some(Self::EIP4844),
+            _ => None,
+        }
+    }
+}
+
 impl Encodable for TxType {
     /// TxType is encoded as [`u8`][1].
     ///

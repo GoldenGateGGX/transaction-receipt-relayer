@@ -74,6 +74,12 @@ pub struct BlockHeader {
     pub extra_data: Vec<u8>,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BlockHeaderWithTransaction {
+    pub header: BlockHeader,
+    pub transactions: Vec<H256>,
+}
+
 impl BlockHeader {
     fn header_payload_length(&self) -> usize {
         let mut length = 0;

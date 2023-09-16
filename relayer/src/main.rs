@@ -5,11 +5,12 @@ use client::Client;
 use eyre::Result;
 use tokio::fs;
 
+mod bloom_processor;
 mod client;
+pub(crate) mod common;
 mod config;
 pub(crate) mod consts;
 mod db;
-mod merkle;
 
 use config::{Config, WatchAddress};
 use db::DB;
@@ -30,9 +31,27 @@ async fn main() -> Result<()> {
     db.create_tables()?;
 
     let watch_addresses = WatchAddress::decode_config(&config.watch_dog_config)?;
-    let mut client = Client::new(config.clone(), db.clone(), term, watch_addresses)?;
+    let mut client = Client::new(
+        config.clone(),
+        db.clone(),
+        term.clone(),
+        watch_addresses.clone(),
+    )?;
+    let bloom_processor =
+        bloom_processor::BloomProcessor::new(watch_addresses, db.clone(), config, term)?;
 
-    let res = client.start().await;
-    log::info!("client was stopped, reason: {:?}", res);
+    tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                log::info!("ctrl-c received, shutting down");
+            }
+
+            _ = client.start() => {
+                log::info!("client was stopped");
+            }
+
+            _ = bloom_processor.run() => {
+                log::info!("bloom processor was stopped");
+            }
+    }
     Ok(())
 }
