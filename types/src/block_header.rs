@@ -74,7 +74,8 @@ pub struct BlockHeader {
     pub extra_data: Vec<u8>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BlockHeaderWithTransaction {
     pub header: BlockHeader,
     pub transactions: Vec<H256>,
