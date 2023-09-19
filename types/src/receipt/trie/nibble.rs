@@ -1,4 +1,4 @@
-use std::cmp::min;
+use alloc::vec::Vec;
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -113,7 +113,7 @@ impl Nibbles {
     }
 
     pub fn common_prefix(&self, other_partial: &Nibbles) -> usize {
-        let s = min(self.len(), other_partial.len());
+        let s = core::cmp::min(self.len(), other_partial.len());
         let mut i = 0usize;
         while i < s {
             if self.at(i) != other_partial.at(i) {

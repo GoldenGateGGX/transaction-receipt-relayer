@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use alloy_rlp::{Encodable, RlpEncodableWrapper};
 use keccak_hash::keccak;
 use parity_scale_codec::{Decode, Encode};

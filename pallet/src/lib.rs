@@ -1,10 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(slice_pattern)]
 
+use frame_support::sp_std::{convert::TryInto, prelude::*};
 use frame_support::traits::ExistenceRequirement::AllowDeath;
 use frame_support::{pallet_prelude::ensure, traits::Get, PalletId};
 pub use pallet::*;
-use sp_std::{convert::TryInto, prelude::*};
 use types::{EventProof, TransactionReceipt};
 use types::{H160, H256};
 use webb_proposals::TypedChainId;
@@ -151,7 +151,7 @@ pub mod pallet {
             let validator = ensure_signed(origin)?;
 
             // Create a str slice from the body.
-            let event_proof_str = sp_std::str::from_utf8(&event_proof)
+            let event_proof_str = frame_support::sp_std::str::from_utf8(&event_proof)
                 .map_err(|_| Error::<T>::ConvertToStringFailed)?;
 
             let event_proof: EventProof =

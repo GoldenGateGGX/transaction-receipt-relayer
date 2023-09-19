@@ -9,8 +9,9 @@ edition = "2021"
 repository = "https://github.com/ggxchain/transaction-receipt-relayer"
 
 [workspace.dependencies]
-alloy-rlp = { version = "0.3.2", features = ["derive"] }
-bytes = "1.4.0"
+alloy-rlp = { version = "0.3.2", default-features = false, features = [
+    "derive",
+] }
 parity-scale-codec = { version = "3", default-features = false, features = [
     "derive",
     "max-encoded-len",
@@ -23,7 +24,7 @@ eyre = "0.6.8"
 helios = { git = "https://github.com/a16z/helios.git", tag = "0.4.1" }
 hex = "0.4"
 hex-literal = "0.4.1"
-keccak-hash = "0.10.0"
+keccak-hash = { version = "0.10.0", default-features = false }
 lazy_static = "1.4.0"
 log = "0.4.7"
 merkle-cbt = "0.3.2"
@@ -33,7 +34,7 @@ scale-info = { version = "2.1.1", default-features = false, features = [
     "derive",
 ] }
 serde = { version = "1.0.164", default-features = false }
-serde_json = "1.0.97"
+serde_json = { version = "1.0.97", default-features = false }
 sha3 = "0.10.8"
 signal-hook = "0.3.15"
 tokio = "1.28.2"
@@ -59,10 +60,7 @@ eth-types = { git = "https://github.com/ggxchain/pallet-eth2-light-client.git", 
 ] }
 consensus = { package = "webb-consensus-types", git = "https://github.com/ggxchain/pallet-eth2-light-client.git", branch = "polkadot-v0.9.43", default-features = false }
 pallet-eth2-light-client = { git = "https://github.com/ggxchain/pallet-eth2-light-client.git", branch = "polkadot-v0.9.43", default-features = false }
-webb-proposals = { git = "https://github.com/webb-tools/webb-rs.git", default-features = false, features = [
-    "scale",
-    "evm",
-], rev = "2cd947558cedbd29a1d26f650e3de855f6380b9f" }
+webb-proposals = { git = "https://github.com/webb-tools/webb-rs.git", default-features = false, rev = "2cd947558cedbd29a1d26f650e3de855f6380b9f" }
 
 cita_trie = { git = "https://github.com/ggxchain/cita-trie.git", branch = "cita-trie-extended-pub" }
 hasher = "0.1"

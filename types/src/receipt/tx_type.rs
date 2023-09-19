@@ -1,5 +1,4 @@
-use alloy_rlp::Encodable;
-use bytes::BufMut;
+use alloy_rlp::{BufMut, Encodable};
 
 /// Transaction Type enum; adapted from [`reth_primitives::TxType`][1].
 ///

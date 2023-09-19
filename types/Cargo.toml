@@ -8,21 +8,18 @@ repository.workspace = true
 [features]
 default = []
 debug = []
-serde = ["dep:serde", "serde/std", "dep:serde-big-array"]
+serde = ["dep:serde", "dep:serde-big-array"]
 std = ["serde"]
 
 [dependencies]
-
-
 alloy-rlp.workspace = true
 parity-scale-codec.workspace = true
 scale-info.workspace = true
-bytes.workspace = true
 keccak-hash.workspace = true
 ethbloom.workspace = true
 # Optional deps 
-serde = { workspace = true, optional = true, default-features = false }
-serde-big-array = { workspace = true, optional = true, default-features = false }
+serde = { workspace = true, optional = true, features = ["derive"] }
+serde-big-array = { workspace = true, optional = true }
 
 [dev-dependencies]
 ethers.workspace = true

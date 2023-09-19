@@ -140,9 +140,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f938f00332d63a5b0ac687bd6f46d03884638948921d9f8b50c59563d421ae25"
 dependencies = [
  "alloy-rlp-derive",
- "arrayvec 0.7.3",
  "bytes",
- "smol_str",
 ]
 
 [[package]]
@@ -4143,7 +4141,6 @@ dependencies = [
  "scale-info",
  "serde_json",
  "sp-core",
- "sp-std",
  "types",
  "webb-consensus-types",
  "webb-proposals",
@@ -5725,15 +5722,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
 
 [[package]]
-name = "smol_str"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74212e6bbe9a4352329b2f68ba3130c15a3f26fe88ff22dbdc6cdd58fa85e99c"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "socket2"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6992,7 +6980,6 @@ name = "types"
 version = "0.1.0"
 dependencies = [
  "alloy-rlp",
- "bytes",
  "cita_trie",
  "ethbloom 0.13.0",
  "ethers",

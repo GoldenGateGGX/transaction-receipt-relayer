@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use alloy_rlp::{BufMut, BytesMut, Encodable};
 
 use crate::{Bloom, Log};

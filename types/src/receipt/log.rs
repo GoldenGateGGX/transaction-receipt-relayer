@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use alloy_rlp::Encodable;
 
 use crate::{encode, H160, H256};
