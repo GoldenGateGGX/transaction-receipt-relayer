@@ -13,6 +13,8 @@ pub struct Config {
     #[arg(long)]
     pub database: PathBuf,
     #[arg(long)]
+    pub substrate_config_path: PathBuf,
+    #[arg(long)]
     pub helios_config_path: PathBuf,
     #[arg(long)]
     pub watch_dog_config: PathBuf,

@@ -7,11 +7,13 @@ use types::{BlockHeaderWithTransaction, TransactionReceipt, H256};
 use crate::common::*;
 use crate::config::{Config, WatchAddress};
 use crate::db::DB;
+use crate::tx_sender::TxSender;
 
 pub struct BloomProcessor {
     db: DB,
     watch_addresses: Vec<WatchAddress>,
     fetch_rpc: Provider<Http>,
+    tx_sender: TxSender,
     term: Arc<AtomicBool>,
 }
 
@@ -21,6 +23,7 @@ impl BloomProcessor {
         db: DB,
         config: Config,
         term: Arc<AtomicBool>,
+        tx_sender: TxSender,
     ) -> eyre::Result<Self> {
         let config = prepare_config(&config);
         let fetch_rpc = Provider::<Http>::try_from(config.execution_rpc.as_str())?;
@@ -29,6 +32,7 @@ impl BloomProcessor {
             watch_addresses,
             fetch_rpc,
             term,
+            tx_sender,
         })
     }
 
@@ -87,7 +91,10 @@ impl BloomProcessor {
                     log::info!("Created a proof for a block");
                     assert!(proof.validate().is_ok());
 
-                    // TODO: send proof to the chain
+                    if let Err(e) = self.tx_sender.send_event_proof(proof).await {
+                        log::warn!("Error while sending proof to the chain: {:?}", e);
+                        continue;
+                    }
                 }
 
                 // Update block status to processed

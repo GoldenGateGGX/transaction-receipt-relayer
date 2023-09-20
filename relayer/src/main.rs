@@ -11,9 +11,11 @@ pub(crate) mod common;
 mod config;
 pub(crate) mod consts;
 mod db;
+mod tx_sender;
 
 use config::{Config, WatchAddress};
 use db::DB;
+use tx_sender::TxSender;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -37,8 +39,13 @@ async fn main() -> Result<()> {
         term.clone(),
         watch_addresses.clone(),
     )?;
+    let tx_sender = TxSender::new(
+        &config.substrate_config_path,
+        network_name_to_id(&config.network)?,
+    )
+    .await?;
     let bloom_processor =
-        bloom_processor::BloomProcessor::new(watch_addresses, db.clone(), config, term)?;
+        bloom_processor::BloomProcessor::new(watch_addresses, db.clone(), config, term, tx_sender)?;
 
     tokio::select! {
             _ = tokio::signal::ctrl_c() => {
@@ -54,4 +61,12 @@ async fn main() -> Result<()> {
             }
     }
     Ok(())
+}
+
+fn network_name_to_id(network_name: &str) -> Result<u32> {
+    match network_name {
+        "mainnet" => Ok(1),
+        "testnet" => Ok(5),
+        _ => Err(eyre::eyre!("Unknown network name {}", network_name)),
+    }
 }
