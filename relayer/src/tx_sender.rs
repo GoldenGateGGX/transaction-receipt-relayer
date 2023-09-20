@@ -33,6 +33,9 @@ impl TxSender {
     }
 
     pub async fn send_event_proof(&self, event_proof: types::EventProof) -> Result<()> {
+        // TODO: Ideally we should check if the proof isn't already submitted
+        // but let's skip this for now
+
         let tx = ggxchain::tx().eth_receipt_registry().submit_proof(
             TypedChainId::Evm(self.chain_id),
             serde_json::to_vec(&event_proof)?,
