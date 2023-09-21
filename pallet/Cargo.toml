@@ -32,7 +32,6 @@ types = { workspace = true, features = [
 ], default-features = false }
 hex.workspace = true
 hex-literal.workspace = true
-lazy_static.workspace = true
 
 [features]
 default = ["std"]

@@ -23,7 +23,6 @@ helios = { git = "https://github.com/a16z/helios.git", tag = "0.4.1" }
 hex = "0.4"
 hex-literal = "0.4.1"
 keccak-hash = "0.10.0"
-lazy_static = "1.4.0"
 log = "0.4.7"
 merkle-cbt = "0.3.2"
 rusqlite = "0.28.0"

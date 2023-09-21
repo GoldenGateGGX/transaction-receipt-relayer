@@ -4121,7 +4121,6 @@ dependencies = [
  "frame-system",
  "hex",
  "hex-literal",
- "lazy_static",
  "pallet-balances",
  "pallet-eth2-light-client",
  "parity-scale-codec 3.6.4",
