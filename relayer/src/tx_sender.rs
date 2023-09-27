@@ -32,6 +32,7 @@ impl TxSender {
         })
     }
 
+    // TODO: Re-make it using utility pallet to submit a batch of proofs
     pub async fn send_event_proof(&self, event_proof: types::EventProof) -> Result<()> {
         // TODO: Ideally we should check if the proof isn't already submitted
         // but let's skip this for now

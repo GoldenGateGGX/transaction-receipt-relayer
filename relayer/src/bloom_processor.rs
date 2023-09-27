@@ -92,7 +92,11 @@ impl BloomProcessor {
                     assert!(proof.validate().is_ok());
 
                     if let Err(e) = self.tx_sender.send_event_proof(proof).await {
-                        log::warn!("Error while sending proof to the chain: {:?}", e);
+                        log::warn!(
+                            "Error while sending proof to the chain: {}: {:?}",
+                            block_height,
+                            e
+                        );
                         continue;
                     }
                 }

@@ -11,7 +11,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 parity-scale-codec.workspace = true
 scale-info.workspace = true
-webb-proposals.workspace = true
+webb-proposals = { workspace = true, features = ["scale"] }
 frame-support.workspace = true
 frame-system.workspace = true
 serde_json = { workspace = true, features = ["alloc"] }
@@ -25,7 +25,6 @@ alloy-rlp = { workspace = true }
 ethers.workspace = true
 consensus.workspace = true
 pallet-balances.workspace = true
-types = { workspace = true, features = ["serde"], default-features = false }
 hex.workspace = true
 hex-literal.workspace = true
 lazy_static.workspace = true

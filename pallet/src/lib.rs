@@ -40,9 +40,9 @@ pub mod pallet {
         #[pallet::constant]
         type PalletId: Get<PalletId>;
 
-        type Currency: Currency<Self::AccountId>;
+        type Currency: Currency<<Self as frame_system::Config>::AccountId>;
 
-        type PrivilegedOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+        type PrivilegedOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
     }
 
     /// ProcessedReceipts
@@ -314,7 +314,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-    pub fn account_id() -> T::AccountId {
+    pub fn account_id() -> <T as frame_system::Config>::AccountId {
         <T as Config>::PalletId::get().into_account_truncating()
     }
 

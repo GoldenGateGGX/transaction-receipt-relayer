@@ -45,7 +45,7 @@ impl Encodable for TxType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
+    use alloy_rlp::BytesMut;
 
     #[test]
     fn encode() {
