@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{collections::HashMap, path::Path, time::Duration};
 
 use eyre::Result;
 use subxt::{error::DispatchError, tx::TxStatus, OnlineClient, PolkadotConfig};
@@ -6,16 +6,22 @@ use subxt_signer::{
     bip39::Mnemonic,
     sr25519::{dev, Keypair},
 };
+use types::H160;
+
+use crate::consts::UPDATE_WATCHED_ADDRESSES_INTERVAL;
 
 use self::ggxchain::runtime_types::webb_proposals::header::TypedChainId;
 
-pub struct TxSender {
+#[derive(Debug, Clone)]
+pub struct SubstrateClient {
     api: OnlineClient<PolkadotConfig>,
     keypair: Keypair,
     chain_id: u32,
+
+    watched_addresses: HashMap<u32, (Duration, Vec<H160>)>,
 }
 
-impl TxSender {
+impl SubstrateClient {
     pub async fn new(substrate_config_path: &Path, chain_id: u32) -> Result<Self> {
         let file_content = std::fs::read_to_string(substrate_config_path)?;
         let config: SubstrateConfig = toml::from_str(&file_content)?;
@@ -29,6 +35,7 @@ impl TxSender {
             api,
             keypair,
             chain_id,
+            watched_addresses: HashMap::new(),
         })
     }
 
@@ -113,6 +120,34 @@ impl TxSender {
         }
 
         Err(std::io::Error::new(std::io::ErrorKind::Other, "Transaction stream ended").into())
+    }
+
+    pub async fn watched_addresses(&mut self, chain_id: u32) -> Result<Vec<types::H160>> {
+        let current_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?;
+        if let Some((last_update, data)) = self.watched_addresses.get(&chain_id) {
+            if current_time - *last_update < UPDATE_WATCHED_ADDRESSES_INTERVAL {
+                return Ok(data.clone());
+            }
+        }
+
+        let query = ggxchain::storage()
+            .eth_receipt_registry()
+            .watched_contracts(TypedChainId::Evm(chain_id));
+        let result: Vec<H160> = self
+            .api
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&query)
+            .await?
+            .map(|vec| vec.0)
+            .ok_or_else(|| eyre::eyre!("Empty watched contracts list"))?
+            .into_iter()
+            .map(|addr| types::H160(addr.0))
+            .collect();
+        self.watched_addresses
+            .insert(chain_id, (current_time, result.clone()));
+        Ok(result)
     }
 }
 

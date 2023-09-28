@@ -10,13 +10,11 @@ use helios::{
     client::{Client as HeliosClient, ClientBuilder, FileDB},
     types::{BlockTag, ExecutionBlock},
 };
-use types::{BlockHeaderWithTransaction, H256};
+use types::{BlockHeaderWithTransaction, H160, H256};
 
 use crate::{
-    common::*,
-    config::{Config, WatchAddress},
-    consts::BLOCK_AMOUNT_TO_STORE,
-    db::DB,
+    common::*, config::Config, consts::BLOCK_AMOUNT_TO_STORE, db::DB, network_name_to_id,
+    substrate_client::SubstrateClient,
 };
 
 pub struct Client {
@@ -24,7 +22,11 @@ pub struct Client {
     block_rpc: Provider<Http>,
     db: DB,
     term: Arc<AtomicBool>,
-    watch_addresses: Vec<WatchAddress>,
+    substrate_client: SubstrateClient,
+    chain_id: u32,
+
+    // Cache of watched addresses
+    watched_addresses: Option<Vec<H160>>,
 }
 
 impl Client {
@@ -32,7 +34,7 @@ impl Client {
         config: Config,
         db: DB,
         term: Arc<AtomicBool>,
-        watch_addresses: Vec<WatchAddress>,
+        substrate_client: SubstrateClient,
     ) -> Result<Self> {
         let helios_config = prepare_config(&config);
         let block_rpc = Provider::<Http>::try_from(&helios_config.execution_rpc)?;
@@ -45,7 +47,9 @@ impl Client {
             block_rpc,
             db,
             term,
-            watch_addresses,
+            substrate_client,
+            chain_id: network_name_to_id(&config.network)?,
+            watched_addresses: None,
         })
     }
 
@@ -85,6 +89,20 @@ impl Client {
                 continue;
             }
             log::info!(target: TARGET,"New blocks to fetch. Latest finalized: {}, Latest processed: {latest_fetched_block:?}", finalized_block.number );
+
+            // We have received finality update. It happens not that often, let's check watched addresses.
+            if let Ok(watched_addresses) =
+                self.substrate_client.watched_addresses(self.chain_id).await
+            {
+                // Update cache only if we have successfully fetched
+                self.watched_addresses = Some(watched_addresses);
+            }
+
+            // If we could never get watched addresses, there is no point in fetching blocks.
+            if self.watched_addresses.is_none() {
+                log::warn!(target: TARGET,"Failed to get watched addresses, retrying in {} seconds", duration.period().as_secs());
+                continue;
+            }
 
             if let Err(e) = self
                 .collect_blocks_after_finality_update(finalized_block, latest_fetched_block)
@@ -156,19 +174,23 @@ impl Client {
                 repeat = repeat_cycle(repeat).await?;
             }
         }
-
-        self.process_fetched_blocks(blocks_to_process).await?;
+        self.process_fetched_blocks(blocks_to_process)?;
 
         Ok(())
     }
 
     /// Process fetched blocks, check the block hash, bloom filter and store records in the database.
     /// The blocks are processed from the latest processed block + 1 to the latest block.
-    async fn process_fetched_blocks(
+    fn process_fetched_blocks(
         &mut self,
         blocks: Vec<(BlockHeaderWithTransaction, H256)>,
     ) -> Result<()> {
         const TARGET: &str = "relayer::client::process_fetched_blocks";
+
+        let watched_addresses = self
+            .watched_addresses
+            .as_ref()
+            .expect("This function should be called only after we have fetched watched addresses");
 
         if blocks.is_empty() {
             return Ok(());
@@ -196,10 +218,9 @@ impl Client {
             let block_number = block.header.number;
 
             // Check the bloom filter over expected contracts
-            let should_process = self
-                .watch_addresses
+            let should_process = watched_addresses
                 .iter()
-                .any(|address| address.try_against(&block.header.logs_bloom));
+                .any(|address| block.header.logs_bloom.check_address(address));
 
             // Store block in the database
             self.db
