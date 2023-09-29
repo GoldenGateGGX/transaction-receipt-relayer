@@ -1622,7 +1622,7 @@ dependencies = [
 [[package]]
 name = "eth-types"
 version = "0.1.0"
-source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?rev=7f6b27a575f55ff8dbb6017aa06c2e51a4310096#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
+source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?branch=old-polkadot-v0.9.43#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
 dependencies = [
  "derive_more",
  "ethereum-types 0.14.1",
@@ -4094,7 +4094,7 @@ dependencies = [
 [[package]]
 name = "pallet-eth2-light-client"
 version = "0.1.0"
-source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?rev=7f6b27a575f55ff8dbb6017aa06c2e51a4310096#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
+source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?branch=old-polkadot-v0.9.43#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
 dependencies = [
  "bitvec 1.0.1",
  "derive_more",
@@ -7472,7 +7472,7 @@ dependencies = [
 [[package]]
 name = "webb-bls"
 version = "0.2.0"
-source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?rev=7f6b27a575f55ff8dbb6017aa06c2e51a4310096#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
+source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?branch=old-polkadot-v0.9.43#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
 dependencies = [
  "ethereum-types 0.14.1",
  "hex",
@@ -7490,7 +7490,7 @@ dependencies = [
 [[package]]
 name = "webb-consensus-types"
 version = "0.1.0"
-source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?rev=7f6b27a575f55ff8dbb6017aa06c2e51a4310096#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
+source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?branch=old-polkadot-v0.9.43#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
 dependencies = [
  "bitvec 1.0.1",
  "derive_more",
@@ -7514,7 +7514,7 @@ dependencies = [
 [[package]]
 name = "webb-eth2-hashing"
 version = "0.3.0"
-source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?rev=7f6b27a575f55ff8dbb6017aa06c2e51a4310096#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
+source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?branch=old-polkadot-v0.9.43#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
 dependencies = [
  "lazy_static",
  "ring",
@@ -7524,7 +7524,7 @@ dependencies = [
 [[package]]
 name = "webb-eth2-serde-utils"
 version = "0.1.1"
-source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?rev=7f6b27a575f55ff8dbb6017aa06c2e51a4310096#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
+source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?branch=old-polkadot-v0.9.43#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
 dependencies = [
  "ethereum-types 0.14.1",
  "hex",
@@ -7535,7 +7535,7 @@ dependencies = [
 [[package]]
 name = "webb-eth2-ssz"
 version = "0.4.1"
-source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?rev=7f6b27a575f55ff8dbb6017aa06c2e51a4310096#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
+source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?branch=old-polkadot-v0.9.43#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
 dependencies = [
  "ethereum-types 0.14.1",
  "itertools",
@@ -7545,7 +7545,7 @@ dependencies = [
 [[package]]
 name = "webb-eth2-ssz-derive"
 version = "0.3.0"
-source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?rev=7f6b27a575f55ff8dbb6017aa06c2e51a4310096#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
+source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?branch=old-polkadot-v0.9.43#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -7556,7 +7556,7 @@ dependencies = [
 [[package]]
 name = "webb-merkle-proof"
 version = "0.2.0"
-source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?rev=7f6b27a575f55ff8dbb6017aa06c2e51a4310096#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
+source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?branch=old-polkadot-v0.9.43#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
 dependencies = [
  "ethereum-types 0.14.1",
  "lazy_static",
@@ -7581,12 +7581,12 @@ dependencies = [
 [[package]]
 name = "webb-safe-arith"
 version = "0.1.0"
-source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?rev=7f6b27a575f55ff8dbb6017aa06c2e51a4310096#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
+source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?branch=old-polkadot-v0.9.43#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
 
 [[package]]
 name = "webb-tree-hash"
 version = "0.4.1"
-source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?rev=7f6b27a575f55ff8dbb6017aa06c2e51a4310096#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
+source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?branch=old-polkadot-v0.9.43#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
 dependencies = [
  "ethereum-types 0.14.1",
  "smallvec",
@@ -7596,7 +7596,7 @@ dependencies = [
 [[package]]
 name = "webb-tree-hash-derive"
 version = "0.4.0"
-source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?rev=7f6b27a575f55ff8dbb6017aa06c2e51a4310096#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
+source = "git+https://github.com/ggxchain/pallet-eth2-light-client.git?branch=old-polkadot-v0.9.43#7f6b27a575f55ff8dbb6017aa06c2e51a4310096"
 dependencies = [
  "darling",
  "quote",
