@@ -94,6 +94,7 @@ impl Client {
                 self.substrate_client.watched_addresses(self.chain_id).await
             {
                 // Update cache only if we have successfully fetched
+                // TODO: ideally after we noticed that we have new addresses, we should check for blocks stored in db to verify that we didn't miss some txs
                 self.watched_addresses = Some(watched_addresses);
             }
 
