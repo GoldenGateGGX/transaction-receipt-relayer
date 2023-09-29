@@ -39,8 +39,7 @@ impl SubstrateClient {
         })
     }
 
-    // TODO: Re-make it using utility pallet to submit a batch of proofs
-    pub async fn send_event_proof(&self, event_proof: types::EventProof) -> Result<()> {
+    pub async fn send_event_proof(&self, event_proof: types::EventProof, nonce: u64) -> Result<()> {
         // TODO: Ideally we should check if the proof isn't already submitted
         // but let's skip this for now
 
@@ -51,7 +50,8 @@ impl SubstrateClient {
         let mut tx_progress = self
             .api
             .tx()
-            .sign_and_submit_then_watch_default(&tx, &self.keypair)
+            .create_signed_with_nonce(&tx, &self.keypair, nonce, Default::default())?
+            .submit_and_watch()
             .await?;
 
         while let Some(event) = tx_progress.next_item().await {
@@ -120,6 +120,39 @@ impl SubstrateClient {
         }
 
         Err(std::io::Error::new(std::io::ErrorKind::Other, "Transaction stream ended").into())
+    }
+
+    // TODO: Re-make it using utility pallet to submit a batch of proofs in single tx, but for now we keep it simple
+    /// sends a batch of proofs to the chain and returns a vector of results with a block_height
+    pub async fn send_event_proofs(
+        &self,
+        event_proofs: Vec<types::EventProof>,
+    ) -> Vec<(u64, Result<()>)> {
+        let block_heights = event_proofs
+            .iter()
+            .map(|event_proof| event_proof.block_header.number)
+            .collect::<Vec<_>>();
+        let nonce = self
+            .api
+            .tx()
+            .account_nonce(&self.keypair.public_key().into())
+            .await;
+
+        if let Err(err) = nonce {
+            log::error!("failed to get nonce: {err:?}");
+            return vec![];
+        }
+        let nonce = nonce.unwrap();
+
+        let events_len = event_proofs.len() as u64;
+        let event_proofs_future = event_proofs
+            .into_iter()
+            .zip(nonce..nonce + events_len)
+            .map(|(event_proof, nonce)| self.send_event_proof(event_proof, nonce))
+            .collect::<Vec<_>>();
+
+        let results = futures::future::join_all(event_proofs_future).await;
+        block_heights.into_iter().zip(results.into_iter()).collect()
     }
 
     pub async fn watched_addresses(&mut self, chain_id: u32) -> Result<Vec<types::H160>> {

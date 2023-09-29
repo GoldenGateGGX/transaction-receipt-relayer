@@ -67,12 +67,11 @@ impl Client {
     async fn finalization_loop(&mut self) -> Result<()> {
         const TARGET: &str = "relayer::client::finalization_loop";
 
-        let mut duration = tokio::time::interval(Duration::from_secs(5));
         let mut latest_fetched_block = self.db.select_latest_fetched_block_height()?;
-
+        let sleep_duration = Duration::from_secs(5);
         loop {
             exit_if_term(self.term.clone());
-            duration.tick().await;
+            tokio::time::sleep(Duration::from_secs(5)).await;
             let finalized_block = self
                 .client
                 .get_block_by_number(BlockTag::Finalized, false)
@@ -80,12 +79,12 @@ impl Client {
             let finalized_block = if let Ok(Some(finalized_block)) = finalized_block {
                 finalized_block
             } else {
-                log::warn!(target: TARGET,"Failed to get finalized block, retrying in {} seconds", duration.period().as_secs());
+                log::warn!(target: TARGET,"Failed to get finalized block, retrying in {} seconds", sleep_duration.as_secs());
                 continue;
             };
 
             if Some(finalized_block.number) == latest_fetched_block {
-                log::info!(target: TARGET,"No new finalized blocks, retrying in {} seconds", duration.period().as_secs());
+                log::info!(target: TARGET,"No new finalized blocks, retrying in {} seconds", sleep_duration.as_secs());
                 continue;
             }
             log::info!(target: TARGET,"New blocks to fetch. Latest finalized: {}, Latest processed: {latest_fetched_block:?}", finalized_block.number );
@@ -100,7 +99,7 @@ impl Client {
 
             // If we could never get watched addresses, there is no point in fetching blocks.
             if self.watched_addresses.is_none() {
-                log::warn!(target: TARGET,"Failed to get watched addresses, retrying in {} seconds", duration.period().as_secs());
+                log::warn!(target: TARGET,"Failed to get watched addresses, retrying in {} seconds", sleep_duration.as_secs());
                 continue;
             }
 

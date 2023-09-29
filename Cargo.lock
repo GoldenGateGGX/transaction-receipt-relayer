@@ -1893,6 +1893,7 @@ dependencies = [
  "env_logger",
  "ethers",
  "eyre",
+ "futures",
  "helios",
  "hex",
  "hex-literal",
