@@ -1,5 +1,7 @@
 use alloy_rlp::{length_of_length, BufMut, Encodable, EMPTY_LIST_CODE, EMPTY_STRING_CODE};
 
+use alloc::vec::Vec;
+
 use crate::{encode, Bloom, H160, H256, H64, U256};
 
 /// The block structure hashed to generate the `block_hash` field for Ethereum's

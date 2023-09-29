@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use alloy_rlp::{BufMut, Encodable};
 
 use crate::{encode, receipt::trie::nibble::Nibbles, TransactionReceipt};

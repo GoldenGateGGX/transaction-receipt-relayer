@@ -1,10 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![feature(slice_pattern)]
 
+use frame_support::sp_std::{convert::TryInto, prelude::*};
 use frame_support::traits::ExistenceRequirement::AllowDeath;
 use frame_support::{pallet_prelude::ensure, traits::Get, PalletId};
 pub use pallet::*;
-use sp_std::{convert::TryInto, prelude::*};
 use types::{EventProof, TransactionReceipt};
 use types::{H160, H256};
 use webb_proposals::TypedChainId;
@@ -40,9 +40,9 @@ pub mod pallet {
         #[pallet::constant]
         type PalletId: Get<PalletId>;
 
-        type Currency: Currency<Self::AccountId>;
+        type Currency: Currency<<Self as frame_system::Config>::AccountId>;
 
-        type PrivilegedOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+        type PrivilegedOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
     }
 
     /// ProcessedReceipts
@@ -151,7 +151,7 @@ pub mod pallet {
             let validator = ensure_signed(origin)?;
 
             // Create a str slice from the body.
-            let event_proof_str = sp_std::str::from_utf8(&event_proof)
+            let event_proof_str = frame_support::sp_std::str::from_utf8(&event_proof)
                 .map_err(|_| Error::<T>::ConvertToStringFailed)?;
 
             let event_proof: EventProof =
@@ -314,7 +314,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-    pub fn account_id() -> T::AccountId {
+    pub fn account_id() -> <T as frame_system::Config>::AccountId {
         <T as Config>::PalletId::get().into_account_truncating()
     }
 

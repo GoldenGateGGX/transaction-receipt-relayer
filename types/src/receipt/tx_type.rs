@@ -1,5 +1,4 @@
-use alloy_rlp::Encodable;
-use bytes::BufMut;
+use alloy_rlp::{BufMut, Encodable};
 
 /// Transaction Type enum; adapted from [`reth_primitives::TxType`][1].
 ///
@@ -46,7 +45,7 @@ impl Encodable for TxType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
+    use alloy_rlp::BytesMut;
 
     #[test]
     fn encode() {

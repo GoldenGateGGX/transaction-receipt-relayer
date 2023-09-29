@@ -1,0 +1,5 @@
+# is_dev will instantiate with Alice as the default keypair
+is_dev = true
+ws_url = "ws://localhost:9944"
+# Replace with your own mnemonic
+phrase = "wheel blade kiss nature draw much rule devote possible path zone traffic"

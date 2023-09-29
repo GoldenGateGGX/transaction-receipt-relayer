@@ -11,9 +11,11 @@ pub(crate) mod common;
 mod config;
 pub(crate) mod consts;
 mod db;
+mod substrate_client;
 
-use config::{Config, WatchAddress};
+use config::Config;
 use db::DB;
+use substrate_client::SubstrateClient;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -30,15 +32,17 @@ async fn main() -> Result<()> {
     let db = DB::new(&config.database)?;
     db.create_tables()?;
 
-    let watch_addresses = WatchAddress::decode_config(&config.watch_dog_config)?;
+    let chain_id: u32 = network_name_to_id(&config.network)?;
+    let substrate_client = SubstrateClient::new(&config.substrate_config_path, chain_id).await?;
+
     let mut client = Client::new(
         config.clone(),
         db.clone(),
         term.clone(),
-        watch_addresses.clone(),
+        substrate_client.clone(),
     )?;
-    let bloom_processor =
-        bloom_processor::BloomProcessor::new(watch_addresses, db.clone(), config, term)?;
+    let mut bloom_processor =
+        bloom_processor::BloomProcessor::new(db.clone(), config, term, substrate_client, chain_id)?;
 
     tokio::select! {
             _ = tokio::signal::ctrl_c() => {
@@ -54,4 +58,12 @@ async fn main() -> Result<()> {
             }
     }
     Ok(())
+}
+
+fn network_name_to_id(network_name: &str) -> Result<u32> {
+    match network_name {
+        "mainnet" => Ok(1),
+        "testnet" => Ok(5),
+        _ => Err(eyre::eyre!("Unknown network name {}", network_name)),
+    }
 }

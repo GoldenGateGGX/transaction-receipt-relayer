@@ -1,3 +1,8 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[macro_use]
+extern crate alloc;
+
 mod receipt;
 pub use receipt::{
     BranchNode, ExtensionNode, Leaf, Log, MerkleProof, MerkleProofNode, Nibbles, Receipt,

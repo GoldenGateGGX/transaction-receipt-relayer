@@ -6,12 +6,12 @@ use frame_support::{
         traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
         AccountId32, MultiSignature,
     },
+    sp_std::convert::{TryFrom, TryInto},
     PalletId,
 };
 use frame_system as system;
 use frame_system::EnsureRoot;
 use sp_core::H256;
-use sp_std::convert::{TryFrom, TryInto};
 use webb_proposals::TypedChainId;
 
 pub type Signature = MultiSignature;

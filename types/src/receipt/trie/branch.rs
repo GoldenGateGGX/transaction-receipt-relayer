@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use alloy_rlp::{length_of_length, BufMut, Encodable};
 
 use crate::{encode::rlp_node, H256};

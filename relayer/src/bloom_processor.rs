@@ -2,37 +2,45 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use ethers::providers::{Http, Middleware, Provider};
-use types::{BlockHeaderWithTransaction, TransactionReceipt, H256};
+use types::{BlockHeaderWithTransaction, TransactionReceipt, H160, H256};
 
 use crate::common::*;
-use crate::config::{Config, WatchAddress};
+use crate::config::Config;
 use crate::db::DB;
+use crate::substrate_client::SubstrateClient;
 
 pub struct BloomProcessor {
     db: DB,
-    watch_addresses: Vec<WatchAddress>,
     fetch_rpc: Provider<Http>,
+    substrate_client: SubstrateClient,
     term: Arc<AtomicBool>,
+    chain_id: u32,
+
+    // Cache of watched addresses
+    watched_addresses: Option<Vec<H160>>,
 }
 
 impl BloomProcessor {
     pub fn new(
-        watch_addresses: Vec<WatchAddress>,
         db: DB,
         config: Config,
         term: Arc<AtomicBool>,
+        substrate_client: SubstrateClient,
+        chain_id: u32,
     ) -> eyre::Result<Self> {
         let config = prepare_config(&config);
         let fetch_rpc = Provider::<Http>::try_from(config.execution_rpc.as_str())?;
         Ok(Self {
             db,
-            watch_addresses,
             fetch_rpc,
             term,
+            substrate_client,
+            chain_id,
+            watched_addresses: None,
         })
     }
 
-    pub async fn run(&self) {
+    pub async fn run(&mut self) {
         log::info!("bloom processor started");
         let mut duration = tokio::time::interval(tokio::time::Duration::from_secs(1));
         loop {
@@ -45,6 +53,17 @@ impl BloomProcessor {
                 continue;
             }
             let block_to_process = blocks_to_process.unwrap();
+            if let Ok(watched_addr) = self.substrate_client.watched_addresses(self.chain_id).await {
+                self.watched_addresses = Some(watched_addr);
+            }
+
+            let watched_address = if let Some(watched_addr) = &self.watched_addresses {
+                watched_addr
+            } else {
+                log::warn!("Watched addresses are not set");
+                continue;
+            };
+
             for (block_height, block_hash, block) in block_to_process {
                 // Fetch receipts for a bloom positive block
                 let receipts = self.fetch_receipts(&block).await;
@@ -57,13 +76,9 @@ impl BloomProcessor {
                 // We need to validate that the bloom filter contains the watch addresses as they might be false positives
                 let mut positive_receipts = vec![];
                 for (i, receipt) in receipts.iter().enumerate() {
-                    if self.watch_addresses.iter().any(|w| {
-                        w.try_against(&receipt.bloom)
-                            && receipt
-                                .receipt
-                                .logs
-                                .iter()
-                                .any(|l| l.address == w.address())
+                    if watched_address.iter().any(|addr| {
+                        receipt.bloom.check_address(addr)
+                            && receipt.receipt.logs.iter().any(|l| l.address == *addr)
                     }) {
                         // Save index of positive receipt
                         positive_receipts.push(i);
@@ -87,7 +102,14 @@ impl BloomProcessor {
                     log::info!("Created a proof for a block");
                     assert!(proof.validate().is_ok());
 
-                    // TODO: send proof to the chain
+                    if let Err(e) = self.substrate_client.send_event_proof(proof).await {
+                        log::warn!(
+                            "Error while sending proof to the chain: {}: {:?}",
+                            block_height,
+                            e
+                        );
+                        continue;
+                    }
                 }
 
                 // Update block status to processed
