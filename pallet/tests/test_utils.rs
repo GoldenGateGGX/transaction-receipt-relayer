@@ -1,7 +1,8 @@
+use std::sync::OnceLock;
+
 use eth_types::eth2::LightClientUpdate;
 
 use eth_types::{pallet::InitInput, BlockHeader};
-use lazy_static::lazy_static;
 
 pub fn read_headers(filename: String) -> Vec<BlockHeader> {
     serde_json::from_reader(std::fs::File::open(std::path::Path::new(&filename)).unwrap()).unwrap()
@@ -42,16 +43,19 @@ pub fn get_goerli_test_data(
     InitInput<[u8; 32]>,
 ) {
     const NETWORK: &str = "goerli";
-    lazy_static! {
-        static ref INIT_UPDATE: LightClientUpdate =
-            read_client_updates(NETWORK.to_string(), 632, 632)[0].clone();
-        static ref UPDATES: Vec<LightClientUpdate> =
-            read_client_updates(NETWORK.to_string(), 633, 633);
-        static ref HEADERS: Vec<Vec<BlockHeader>> = vec![read_headers(format!(
+    static INIT_UPDATE: OnceLock<LightClientUpdate> = OnceLock::new();
+    static UPDATES: OnceLock<Vec<LightClientUpdate>> = OnceLock::new();
+    static HEADERS: OnceLock<Vec<Vec<BlockHeader>>> = OnceLock::new();
+
+    let init_update =
+        INIT_UPDATE.get_or_init(|| read_client_updates(NETWORK.to_string(), 632, 632)[0].clone());
+    let updates = UPDATES.get_or_init(|| read_client_updates(NETWORK.to_string(), 633, 633));
+    let headers = HEADERS.get_or_init(|| {
+        vec![read_headers(format!(
             "./tests/data/{}/execution_blocks_{}_{}.json",
             NETWORK, 8652100, 8661554
-        )),];
-    };
+        ))]
+    });
 
     let init_options = init_options.unwrap_or(InitOptions {
         validate_updates: true,
@@ -61,16 +65,20 @@ pub fn get_goerli_test_data(
     });
 
     let init_input = InitInput {
-        finalized_execution_header: HEADERS[0][0].clone(),
-        finalized_beacon_header: UPDATES[0].clone().finality_update.header_update.into(),
-        current_sync_committee: INIT_UPDATE
+        finalized_execution_header: headers[0][0].clone(),
+        finalized_beacon_header: UPDATES.get().unwrap()[0]
+            .clone()
+            .finality_update
+            .header_update
+            .into(),
+        current_sync_committee: init_update
             .clone()
             .sync_committee_update
             .as_ref()
             .unwrap()
             .next_sync_committee
             .clone(),
-        next_sync_committee: UPDATES[0]
+        next_sync_committee: updates[0]
             .sync_committee_update
             .as_ref()
             .unwrap()
@@ -82,7 +90,7 @@ pub fn get_goerli_test_data(
         trusted_signer: init_options.trusted_signer,
     };
 
-    (&HEADERS, &UPDATES, init_input)
+    (headers, updates, init_input)
 }
 
 pub fn get_test_data(

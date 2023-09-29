@@ -46,15 +46,15 @@
           pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
 
         craneLib = (crane.mkLib pkgs).overrideToolchain rust-toolchain;
-        sqlFilter = path: _type: builtins.match ".*sql$" path != null;
-        testJson = path: _type: builtins.match ".*\/tests\/.*json$" path != null;
-        scaleFilter = path: _type: builtins.match ".*scale$" path != null;
+        sqlFilter = path: _type: builtins.match ".*\.sql$" path != null;
+        testJsonFilter = path: _type: builtins.match ".*\/tests\/.*\.json$" path != null;
+        scaleFilter = path: _type: builtins.match ".*\.scale$" path != null;
         src = lib.cleanSourceWith {
           src = (craneLib.path ./.);
           filter = path: type:
             builtins.any (filter: filter path type) [
               sqlFilter
-              testJson
+              testJsonFilter
               scaleFilter
               craneLib.filterCargoSources
             ];
