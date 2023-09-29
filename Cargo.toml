@@ -54,11 +54,11 @@ sp-std = { default-features = false, git = "https://github.com/paritytech/substr
 sp-core = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
 
 # webb-tools
-eth-types = { git = "https://github.com/ggxchain/pallet-eth2-light-client.git", branch = "polkadot-v0.9.43", default-features = false, features = [
+eth-types = { git = "https://github.com/ggxchain/pallet-eth2-light-client.git", rev = "7f6b27a575f55ff8dbb6017aa06c2e51a4310096", default-features = false, features = [
     "eth2",
 ] }
-consensus = { package = "webb-consensus-types", git = "https://github.com/ggxchain/pallet-eth2-light-client.git", branch = "polkadot-v0.9.43", default-features = false }
-pallet-eth2-light-client = { git = "https://github.com/ggxchain/pallet-eth2-light-client.git", branch = "polkadot-v0.9.43", default-features = false }
+consensus = { package = "webb-consensus-types", git = "https://github.com/ggxchain/pallet-eth2-light-client.git", rev = "7f6b27a575f55ff8dbb6017aa06c2e51a4310096", default-features = false }
+pallet-eth2-light-client = { git = "https://github.com/ggxchain/pallet-eth2-light-client.git", rev = "7f6b27a575f55ff8dbb6017aa06c2e51a4310096", default-features = false }
 webb-proposals = { git = "https://github.com/webb-tools/webb-rs.git", default-features = false, features = [
     "scale",
     "evm",
