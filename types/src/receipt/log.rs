@@ -3,7 +3,14 @@ use alloy_rlp::Encodable;
 
 use crate::{encode, H160, H256};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(
+    Debug,
+    PartialEq,
+    Clone,
+    scale_info::TypeInfo,
+    parity_scale_codec::Encode,
+    parity_scale_codec::Decode,
+)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Log {
     /// Contract that emitted this log.

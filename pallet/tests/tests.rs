@@ -346,7 +346,7 @@ pub fn test_submit_proof_processed_receipts_hash_do_not_contains_key_verify_proo
                 block_number,
                 transaction_receipt_hash
             )),
-            Some(())
+            Some(proof.transaction_receipt.receipt.logs)
         );
         assert_eq!(
             ReceiptRegistry::processed_receipts_hash(GOERLI_CHAIN, transaction_receipt_hash),
@@ -496,7 +496,7 @@ pub fn test_submit_proof_processed_receipts_hash_contains_key() {
                 block_number,
                 transaction_receipt_hash
             )),
-            Some(())
+            Some(proof.transaction_receipt.receipt.logs.clone())
         );
         assert_eq!(
             ReceiptRegistry::processed_receipts_hash(GOERLI_CHAIN, transaction_receipt_hash),
@@ -519,7 +519,7 @@ pub fn test_submit_proof_processed_receipts_hash_contains_key() {
                 block_number,
                 transaction_receipt_hash
             )),
-            Some(())
+            Some(proof.transaction_receipt.receipt.logs)
         );
         assert_eq!(
             ReceiptRegistry::processed_receipts_hash(GOERLI_CHAIN, transaction_receipt_hash),

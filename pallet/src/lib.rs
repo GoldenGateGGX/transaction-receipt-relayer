@@ -26,6 +26,7 @@ pub mod pallet {
         Blake2_128Concat,
     };
     use frame_system::pallet_prelude::*;
+    use types::Log;
 
     #[pallet::pallet]
     #[pallet::without_storage_info]
@@ -46,6 +47,7 @@ pub mod pallet {
     }
 
     /// ProcessedReceipts
+    /// TODO: clean up the storage
     /// Hashes of transaction receipts already processed. Stores up to
     /// [`hashes_gc_threshold`][1] entries.
     ///
@@ -61,7 +63,7 @@ pub mod pallet {
             NMapKey<Blake2_128Concat, u64>,          // Block height
             NMapKey<Blake2_128Concat, H256>,         // Hash of the receipt already processed
         ),
-        (),
+        Vec<Log>,
         OptionQuery,
     >;
 
@@ -197,7 +199,7 @@ pub mod pallet {
                     if Self::is_contract_address_in_log(&event_proof.transaction_receipt, address) {
                         ProcessedReceipts::<T>::insert(
                             (typed_chain_id, block_number, transaction_receipt_hash),
-                            (),
+                            event_proof.transaction_receipt.receipt.logs.clone(),
                         );
                         ProcessedReceiptsHash::<T>::insert(
                             typed_chain_id,
