@@ -91,15 +91,10 @@ pub fn convert_ethers_block(
 }
 
 pub fn prepare_config(config: &Config) -> helios::config::Config {
-    let mut helios_config: helios::config::Config = helios::config::Config::from_file(
+    let helios_config: helios::config::Config = helios::config::Config::from_file(
         &config.helios_config_path,
         &config.network,
         &Default::default(),
-    );
-
-    // TODO: should be fetched from DB or take default from config
-    helios_config.checkpoint = Some(
-        hex::decode("e6894aa5f8a0a6b3a99931e9d6dc3fa5f1bb9f6f65baa1fcd1312e9a4cac60ad").unwrap(),
     );
 
     helios_config

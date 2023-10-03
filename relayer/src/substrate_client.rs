@@ -128,6 +128,9 @@ impl SubstrateClient {
         &self,
         event_proofs: Vec<types::EventProof>,
     ) -> Vec<(u64, Result<()>)> {
+        const TARGET: &str = "relayer::substrate_client::send_event_proofs";
+        log::debug!(target: TARGET, "sending event {} proofs", event_proofs.len());
+
         let block_heights = event_proofs
             .iter()
             .map(|event_proof| event_proof.block_header.number)

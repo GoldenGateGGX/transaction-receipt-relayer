@@ -49,12 +49,16 @@ async fn main() -> Result<()> {
                 log::info!("ctrl-c received, shutting down");
             }
 
-            _ = client.start() => {
-                log::info!("client was stopped");
+            err = tokio::spawn(async move { client.start().await } ) => {
+                if let Err(err) = err {
+                    log::info!("client was stopped because of {err:?}");
+                }
             }
 
-            _ = bloom_processor.run() => {
-                log::info!("bloom processor was stopped");
+            err = tokio::spawn(async move { bloom_processor.run().await }) => {
+                if let Err(err) = err {
+                    log::info!("bloom processor was stopped because of {err:?}");
+                }
             }
     }
     Ok(())
@@ -63,7 +67,7 @@ async fn main() -> Result<()> {
 fn network_name_to_id(network_name: &str) -> Result<u32> {
     match network_name {
         "mainnet" => Ok(1),
-        "testnet" => Ok(5),
+        "goerli" => Ok(5),
         _ => Err(eyre::eyre!("Unknown network name {}", network_name)),
     }
 }
