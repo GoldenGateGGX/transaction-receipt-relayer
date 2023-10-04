@@ -103,7 +103,7 @@ impl BloomProcessor {
                             // Save index of positive receipt
                             proofs
                                 .push(build_receipt_proof(block_hash, &block, &receipts, i).ok()?);
-                        } 
+                        }
                     }
 
                     if proofs.is_empty() {
