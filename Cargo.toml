@@ -70,7 +70,7 @@ webb-proposals = { git = "https://github.com/ggxchain/webb-rs.git", branch = "po
 
 types = { path = "types", default-features = false }
 merkle-generator = { path = "merkle" }
-pallet-receipt-registry = { path = "pallet" }
+pallet-receipt-registry = { path = "pallet", default-features = false }
 
 [patch."https://github.com/a16z/helios.git"]
 helios = { git = "https://github.com/obsessed-cake/helios.git", branch = "bump-max-supported-logs-number" }
