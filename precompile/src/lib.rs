@@ -1,8 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use fp_evm::PrecompileOutput;
-use frame_support::inherent::Vec;
-use frame_support::sp_std::{fmt::Debug, marker::PhantomData};
+use frame_support::{
+    inherent::Vec,
+    sp_std::{fmt::Debug, marker::PhantomData},
+};
 use pallet_evm::{Precompile, PrecompileHandle};
 use precompile_utils::{
     revert, succeed, Address, EvmDataWriter, EvmResult, FunctionModifier, PrecompileHandleExt,
@@ -23,7 +25,7 @@ where
     Runtime: pallet_receipt_registry::Config + pallet_evm::Config + frame_system::Config,
 {
     fn execute(handle: &mut impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
-        log::error!(target: "eth-receipt-provider-precompile", "In eth-receipt-provider wrapper");
+        log::trace!(target: "eth-receipt-provider-precompile::execute", "In eth-receipt-provider precompile");
 
         let selector = handle.read_selector()?;
 
@@ -44,7 +46,7 @@ where
 {
     // The dispatchable wrappers are next. They dispatch a Substrate inner Call.
     fn logs_for_receipt(handle: &impl PrecompileHandle) -> EvmResult<PrecompileOutput> {
-        const TARGET: &str = "eth-receipt-provider-precompile";
+        const TARGET: &str = "eth-receipt-provider-precompile::logs_for_receipt";
 
         let mut input = handle.read_input()?;
         input.expect_arguments(4)?;
@@ -61,13 +63,19 @@ where
 
         let contract_address = types::H160(contract_address.0 .0);
 
-        let (topics, data): (Vec<_>, Vec<_>) =
-            pallet_receipt_registry::Pallet::<Runtime>::processed_receipts((
-                webb_proposals::TypedChainId::Evm(chain_id),
-                block_number,
-                types::H256(receipt_hash.0),
-            ))
-            .ok_or(revert("receipt not found"))?
+        // TODO: we need to calculate db read cost and provide it to the handle, but it hard to define for log data. E.g.:
+        // handle.record_db_read::<Runtime>(
+        //     <(webb_proposals::TypedChainId, u64, types::H256)>::max_encoded_len()
+        // )?;
+
+        let data = pallet_receipt_registry::Pallet::<Runtime>::processed_receipts((
+            webb_proposals::TypedChainId::Evm(chain_id),
+            block_number,
+            types::H256(receipt_hash.0),
+        ))
+        .ok_or(revert("receipt not found"))?;
+
+        let (topics, data): (Vec<_>, Vec<_>) = data
             .into_iter()
             .filter(|log| log.address == contract_address)
             .map(|log| {

@@ -7,6 +7,7 @@ use types::{BlockHeaderWithTransaction, EventProof, TransactionReceipt, H160, H2
 
 use crate::common::*;
 use crate::config::Config;
+use crate::consts::SLEEP_DURATION;
 use crate::db::DB;
 use crate::substrate_client::SubstrateClient;
 
@@ -46,7 +47,7 @@ impl BloomProcessor {
         log::info!("bloom processor started");
         loop {
             exit_if_term(self.term.clone());
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            tokio::time::sleep(SLEEP_DURATION).await;
 
             let blocks_to_process = self.db.select_blocks_to_process();
             if blocks_to_process.is_err() {

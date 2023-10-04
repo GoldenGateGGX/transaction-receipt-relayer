@@ -13,7 +13,11 @@ use helios::{
 use types::{BlockHeaderWithTransaction, H160, H256};
 
 use crate::{
-    common::*, config::Config, consts::BLOCK_AMOUNT_TO_STORE, db::DB, network_name_to_id,
+    common::*,
+    config::Config,
+    consts::{BLOCK_AMOUNT_TO_STORE, SLEEP_DURATION},
+    db::DB,
+    network_name_to_id,
     substrate_client::SubstrateClient,
 };
 
@@ -68,7 +72,6 @@ impl Client {
         const TARGET: &str = "relayer::client::finalization_loop";
 
         let mut latest_fetched_block = self.db.select_latest_fetched_block_height()?;
-        let sleep_duration = Duration::from_secs(5);
         loop {
             exit_if_term(self.term.clone());
             tokio::time::sleep(Duration::from_secs(5)).await;
@@ -79,12 +82,12 @@ impl Client {
             let finalized_block = if let Ok(Some(finalized_block)) = finalized_block {
                 finalized_block
             } else {
-                log::warn!(target: TARGET,"Failed to get finalized block, retrying in {} seconds", sleep_duration.as_secs());
+                log::warn!(target: TARGET,"Failed to get finalized block, retrying in {} seconds", SLEEP_DURATION.as_secs());
                 continue;
             };
 
             if Some(finalized_block.number) == latest_fetched_block {
-                log::info!(target: TARGET,"No new finalized blocks, retrying in {} seconds", sleep_duration.as_secs());
+                log::info!(target: TARGET,"No new finalized blocks, retrying in {} seconds", SLEEP_DURATION.as_secs());
                 continue;
             }
             log::info!(target: TARGET,"New blocks to fetch. Latest finalized: {}, Latest processed: {latest_fetched_block:?}", finalized_block.number );
@@ -100,7 +103,7 @@ impl Client {
 
             // If we could never get watched addresses, there is no point in fetching blocks.
             if self.watched_addresses.is_none() {
-                log::warn!(target: TARGET,"Failed to get watched addresses, retrying in {} seconds", sleep_duration.as_secs());
+                log::warn!(target: TARGET,"Failed to get watched addresses, retrying in {} seconds", SLEEP_DURATION.as_secs());
                 continue;
             }
 
