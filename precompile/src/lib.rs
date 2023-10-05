@@ -7,7 +7,7 @@ use frame_support::{
 };
 use pallet_evm::{Precompile, PrecompileHandle};
 use precompile_utils::{
-    revert, succeed, Address, EvmDataWriter, EvmResult, FunctionModifier, PrecompileHandleExt,
+    succeed, Address, EvmDataWriter, EvmResult, FunctionModifier, PrecompileHandleExt,
 };
 use sp_core::H256;
 

@@ -120,7 +120,7 @@ impl BloomProcessor {
                 .flatten()
                 .collect();
 
-            log::info!(target: TARGET, "Craeted {} event proofs", merkle_proofs.len());
+            log::info!(target: TARGET, "Created {} event proofs", merkle_proofs.len());
 
             self.substrate_client
                 .send_event_proofs(merkle_proofs)

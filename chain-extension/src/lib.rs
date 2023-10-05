@@ -2,7 +2,9 @@
 
 extern crate alloc;
 
-use frame_support::{dispatch::Encode, sp_runtime::DispatchError, sp_std::marker::PhantomData};
+use frame_support::{
+    dispatch::Encode, inherent::Vec, sp_runtime::DispatchError, sp_std::marker::PhantomData,
+};
 use pallet_contracts::chain_extension::{ChainExtension, Environment, Ext, InitState, RetVal};
 
 #[derive(parity_scale_codec::Encode, parity_scale_codec::Decode, Debug, Clone, PartialEq)]
@@ -24,13 +26,13 @@ impl TryFrom<u16> for ReceiptRegistryFuncId {
         match value {
             1 => Ok(ReceiptRegistryFuncId::LogsForReceipt),
             _ => Err(DispatchError::Other(
-                "Unsupported func id in Xvm chain extension",
+                "Unsupported func id in receipt registry chain extension",
             )),
         }
     }
 }
 
-/// XVM chain extension.
+/// ReceiptRegistry chain extension.
 pub struct ReceiptRegistryExtension<Runtime>(PhantomData<Runtime>);
 
 impl<Runtime> Default for ReceiptRegistryExtension<Runtime> {
@@ -91,11 +93,11 @@ where
                     .into_iter()
                     .filter(|log| log.address == contract_address)
                     .map(|log| {
-                        let topics = log
+                        let topics: Vec<_> = log
                             .topics
                             .into_iter()
                             .map(|topic| sp_core::H256(topic.0))
-                            .collect::<Vec<_>>();
+                            .collect();
                         (topics, log.data)
                     })
                     .collect();

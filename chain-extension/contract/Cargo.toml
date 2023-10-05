@@ -1,0 +1,31 @@
+[workspace]
+
+[package]
+name = "dog_owner_contract"
+version = "0.1.0"
+edition = "2021"
+authors = ["admin <admin@ggxchain.io>"]
+
+[dependencies]
+ink = { version = "4.2.0", default-features = false }
+scale = { package = "parity-scale-codec", version = "3", default-features = false, features = [
+    "derive",
+] }
+scale-info = { version = "2.6", default-features = false, features = [
+    "derive",
+], optional = true }
+types = { path = "../../types", default-features = false }
+keccak-hash = { version = "0.10.0", default-features = false }
+
+
+[dev-dependencies]
+ink_e2e = "4.2.0"
+
+[lib]
+path = "lib.rs"
+
+[features]
+default = ["std"]
+std = ["ink/std", "scale/std", "scale-info/std"]
+ink-as-dependency = []
+e2e-tests = []
