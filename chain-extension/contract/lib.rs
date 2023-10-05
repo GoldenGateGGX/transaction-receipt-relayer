@@ -55,6 +55,8 @@ pub type Log = (Vec<types::H256>, Vec<u8>);
 pub trait ReceiptRegistryExtension {
     type ErrorCode = Error;
 
+    // 0004 stands for the registered ID on chain of the chain extension
+    // 0001 stands for method that called using this interface.
     #[ink(extension = 0x00040001)]
     #[ink(handle_status = false)]
     fn logs_for_receipt(
