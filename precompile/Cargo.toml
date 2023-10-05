@@ -1,8 +1,7 @@
 [package]
 name = "pallet-evm-eth-receipt-provider"
-description = "A Precompile to make pallet-session accessible to pallet-evm"
+description = "A Precompile to make pallet-receipt-registry accessible to pallet-evm"
 version.workspace = true
-license = "Unlicense"
 publish = false
 authors.workspace = true
 edition.workspace = true

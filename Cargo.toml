@@ -1,6 +1,13 @@
 [workspace]
 resolver = "2"
-members = ["relayer", "types", "pallet", "merkle", "precompile"]
+members = [
+    "relayer",
+    "types",
+    "pallet",
+    "merkle",
+    "precompile",
+    "chain-extension",
+]
 
 [workspace.package]
 authors = ["Golden Gate"]
@@ -53,6 +60,8 @@ frame-support = { default-features = false, git = "https://github.com/paritytech
 frame-system = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
 pallet-balances = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
 sp-core = { default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.43" }
+pallet-contracts = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43", default-features = false }
+pallet-contracts-primitives = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43", default-features = false }
 
 # Frontier
 pallet-evm = { version = "6.0.0-dev", git = "https://github.com/AstarNetwork/frontier.git", branch = "polkadot-v0.9.43", default-features = false }

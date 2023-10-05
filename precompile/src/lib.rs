@@ -56,7 +56,7 @@ where
         let receipt_hash = input.read::<H256>()?;
         let contract_address = input.read::<Address>()?;
 
-        log::error!(
+        log::debug!(
             target:TARGET,
             "logs_for_receipt with receipt hash: {receipt_hash:?} and contract address: {contract_address:?}",
         );
@@ -68,12 +68,16 @@ where
         //     <(webb_proposals::TypedChainId, u64, types::H256)>::max_encoded_len()
         // )?;
 
-        let data = pallet_receipt_registry::Pallet::<Runtime>::processed_receipts((
-            webb_proposals::TypedChainId::Evm(chain_id),
-            block_number,
-            types::H256(receipt_hash.0),
-        ))
-        .ok_or(revert("receipt not found"))?;
+        let data = if let Some(data) =
+            pallet_receipt_registry::Pallet::<Runtime>::processed_receipts((
+                webb_proposals::TypedChainId::Evm(chain_id),
+                block_number,
+                types::H256(receipt_hash.0),
+            )) {
+            data
+        } else {
+            return Ok(succeed(EvmDataWriter::new().write(false).build()));
+        };
 
         let (topics, data): (Vec<_>, Vec<_>) = data
             .into_iter()
