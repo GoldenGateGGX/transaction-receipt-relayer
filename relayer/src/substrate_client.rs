@@ -25,7 +25,15 @@ impl SubstrateClient {
     pub async fn new(substrate_config_path: &Path, chain_id: u32) -> Result<Self> {
         let file_content = std::fs::read_to_string(substrate_config_path)?;
         let config: SubstrateConfig = toml::from_str(&file_content)?;
-        let api = OnlineClient::<PolkadotConfig>::from_url(config.ws_url).await?;
+        let api = OnlineClient::<PolkadotConfig>::from_url(&config.ws_url)
+            .await
+            .map_err(|err| {
+                eyre::eyre!(
+                    "Failed to connect to substrate node at {} with error: {}",
+                    config.ws_url,
+                    err
+                )
+            })?;
         let keypair = if config.is_dev {
             dev::alice()
         } else {

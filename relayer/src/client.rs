@@ -41,7 +41,14 @@ impl Client {
         substrate_client: SubstrateClient,
     ) -> Result<Self> {
         let helios_config = prepare_config(&config);
-        let block_rpc = Provider::<Http>::try_from(&helios_config.execution_rpc)?;
+        let block_rpc =
+            Provider::<Http>::try_from(&helios_config.execution_rpc).map_err(|err| {
+                eyre::eyre!(
+                    "Failed to connect to Ethereum RPC at {} with error: {}",
+                    helios_config.execution_rpc,
+                    err
+                )
+            })?;
         let client: HeliosClient<FileDB> = ClientBuilder::new()
             .config(helios_config)
             .data_dir(config.database.join("helios"))

@@ -31,7 +31,14 @@ impl BloomProcessor {
         chain_id: u32,
     ) -> eyre::Result<Self> {
         let config = prepare_config(&config);
-        let fetch_rpc = Provider::<Http>::try_from(config.execution_rpc.as_str())?;
+        let fetch_rpc =
+            Provider::<Http>::try_from(config.execution_rpc.as_str()).map_err(|err| {
+                eyre::eyre!(
+                    "Failed to connect to execution RPC at {} with error: {}",
+                    config.execution_rpc,
+                    err
+                )
+            })?;
         Ok(Self {
             db,
             fetch_rpc,
