@@ -1,6 +1,6 @@
 [goerli]
-consensus_rpc = "http://testing.prater.beacon-api.nimbus.team"
+consensus_rpc = "https://lodestar-goerli.chainsafe.io"
 execution_rpc = "https://goerli.infura.io/v3/{INFURA_KEY}"
 load_external_fallback = true
 data_dir = "./data/mainnet"
-checkpoint = "0xc94a175e905659a45f43409d5228eb99510ad130c201951171f0eee3c231ade3"
+checkpoint = "0x3afa740d93317ba849fa3527c5bfc51b3fd63f28d4763773b052a563fb97acb4"
