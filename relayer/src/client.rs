@@ -28,6 +28,7 @@ pub struct Client {
     term: Arc<AtomicBool>,
     substrate_client: SubstrateClient,
     chain_id: u32,
+    blocks_to_store: u64,
 
     // Cache of watched addresses
     watched_addresses: Option<Vec<H160>>,
@@ -60,6 +61,7 @@ impl Client {
             term,
             substrate_client,
             chain_id: network_name_to_id(&config.network)?,
+            blocks_to_store: config.blocks_to_store.unwrap_or(BLOCK_AMOUNT_TO_STORE),
             watched_addresses: None,
         })
     }
@@ -139,12 +141,12 @@ impl Client {
 
         log::info!(target: TARGET,"Processing finality update");
         let latest_fetched_block =
-            latest_fetched_block.unwrap_or(finalized_block.number - BLOCK_AMOUNT_TO_STORE);
+            latest_fetched_block.unwrap_or(finalized_block.number - self.blocks_to_store);
 
         log::info!(target: TARGET,"Latest fetched block: {}", latest_fetched_block);
 
         // Now we have fetch missing blocks using previous block hash until we hit latest processed block.
-        // If it's first run, we have to backtrack for BLOCK_AMOUNT_TO_STORE blocks.
+        // If it's first run, we have to backtrack for self.block_to_fetch blocks.
         let mut blocks_to_process =
             Vec::with_capacity((finalized_block.number - latest_fetched_block) as usize);
 

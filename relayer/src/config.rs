@@ -18,4 +18,6 @@ pub struct Config {
     pub server_host: Option<String>,
     #[arg(long)]
     pub server_port: Option<u64>,
+    #[arg(long)]
+    pub blocks_to_store: Option<u64>,
 }
