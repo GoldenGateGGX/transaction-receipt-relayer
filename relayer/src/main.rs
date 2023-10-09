@@ -50,15 +50,11 @@ async fn main() -> Result<()> {
             }
 
             err = tokio::spawn(async move { client.start().await } ) => {
-                if let Err(err) = err {
-                    log::info!("client was stopped because of {err:?}");
-                }
+                log::error!("client was stopped because of {err:?}");
             }
 
             err = tokio::spawn(async move { bloom_processor.run().await }) => {
-                if let Err(err) = err {
-                    log::info!("bloom processor was stopped because of {err:?}");
-                }
+                log::error!("bloom processor was stopped because of {err:?}");
             }
     }
     Ok(())

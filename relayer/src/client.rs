@@ -68,6 +68,7 @@ impl Client {
 
     pub async fn start(&mut self) -> Result<()> {
         exit_if_term(self.term.clone());
+        log::info!(target: "relayer::client::start","starting client");
         self.client.start().await?;
         log::info!(target: "relayer::client::start","client started");
 
