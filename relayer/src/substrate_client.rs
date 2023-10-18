@@ -193,6 +193,29 @@ impl SubstrateClient {
             .insert(chain_id, (current_time, result.clone()));
         Ok(result)
     }
+
+    pub async fn last_known_block_block_number(&self, chain_id: u32) -> Result<u64> {
+        let query = ggxchain::storage()
+            .eth2_client()
+            .finalized_execution_header(TypedChainId::Evm(chain_id));
+
+        let result = self.api.storage().at_latest().await?.fetch(&query).await?;
+        result
+            .map(|header| header.block_number)
+            .ok_or_else(|| eyre::eyre!("No finalized header"))
+    }
+
+    pub async fn is_item_proved(&self, chain_id: u32, receipt_hash: types::H256) -> Result<bool> {
+        let query = ggxchain::storage()
+            .eth_receipt_registry()
+            .processed_receipts_hash(
+                TypedChainId::Evm(chain_id),
+                subxt::utils::Static(receipt_hash),
+            );
+
+        let result = self.api.storage().at_latest().await?.fetch(&query).await?;
+        Ok(result.is_some())
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -203,5 +226,11 @@ struct SubstrateConfig {
     password: Option<String>,
 }
 
-#[subxt::subxt(runtime_metadata_path = "./metadata/eth-receipt-metadata.scale")]
+#[subxt::subxt(
+    runtime_metadata_path = "./metadata/eth-receipt-metadata.scale",
+    substitute_type(
+        path = "types::primitives::H256",
+        with = "::subxt::utils::Static<::types::H256>"
+    )
+)]
 mod ggxchain {}
