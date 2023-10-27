@@ -20,4 +20,6 @@ pub struct Config {
     pub server_port: Option<u64>,
     #[arg(long)]
     pub blocks_to_store: Option<u64>,
+    #[arg(long)]
+    pub bloom_processor_limit_per_block: Option<u64>,
 }

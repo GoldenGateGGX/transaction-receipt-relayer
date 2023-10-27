@@ -17,6 +17,7 @@ pub struct BloomProcessor {
     substrate_client: SubstrateClient,
     term: Arc<AtomicBool>,
     chain_id: u32,
+    limit_processing_blocks_per_iteration: u64,
 
     // Cache of watched addresses
     watched_addresses: Option<Vec<H160>>,
@@ -30,6 +31,9 @@ impl BloomProcessor {
         substrate_client: SubstrateClient,
         chain_id: u32,
     ) -> eyre::Result<Self> {
+        let limit_processing_blocks_per_iteration = config
+        .bloom_processor_limit_per_block
+        .unwrap_or(crate::consts::DEFAULT_LIMIT_PROCESSING_BLOCKS_PER_ITERATION);
         let config = prepare_config(&config);
         let fetch_rpc =
             Provider::<Http>::try_from(config.execution_rpc.as_str()).map_err(|err| {
@@ -39,6 +43,7 @@ impl BloomProcessor {
                     err
                 )
             })?;
+       
         Ok(Self {
             db,
             fetch_rpc,
@@ -46,15 +51,22 @@ impl BloomProcessor {
             substrate_client,
             chain_id,
             watched_addresses: None,
+            limit_processing_blocks_per_iteration,
         })
     }
 
     pub async fn run(&mut self) {
         const TARGET: &str = "relayer::bloom_processor::run";
         log::info!("bloom processor started");
+
+        // Let's allow light client to sync
+        let mut sleep = true;
         loop {
             exit_if_term(self.term.clone());
-            tokio::time::sleep(SLEEP_DURATION).await;
+            if sleep {
+                log::info!(target: TARGET, "Sleeping for {} secs", SLEEP_DURATION.as_secs());
+                tokio::time::sleep(SLEEP_DURATION).await;
+            }
 
             let latest_finalized_block_on_chain = self
                 .substrate_client
@@ -64,17 +76,19 @@ impl BloomProcessor {
 
             let blocks_to_process = self
                 .db
-                .select_blocks_to_process(latest_finalized_block_on_chain);
+                .select_blocks_to_process(latest_finalized_block_on_chain, self.limit_processing_blocks_per_iteration);
             if blocks_to_process.is_err() {
                 log::warn!(target: TARGET, "Error while selecting blocks to process");
                 continue;
             }
-
+           
             let block_to_process = blocks_to_process.unwrap();
             if block_to_process.is_empty() {
                 log::info!(target: TARGET, "No blocks to process. Sleeping");
+                sleep = true;
                 continue;
             }
+            sleep = block_to_process.len() < self.limit_processing_blocks_per_iteration as usize;
 
             log::info!(target: TARGET, "Processing {} blocks", block_to_process.len());
             if let Ok(watched_addr) = self.substrate_client.watched_addresses(self.chain_id).await {
@@ -94,7 +108,7 @@ impl BloomProcessor {
             let receipts = join_all(receipts).await;
 
             log::info!(target: TARGET, "Fetched {} receipts", receipts.len());
-            let merkle_proofs = Vec::new();
+            let mut merkle_proofs = Vec::new();
 
             for (block_data, receipt_data) in block_to_process.into_iter().zip(receipts.into_iter())
             {
@@ -106,7 +120,6 @@ impl BloomProcessor {
                 let receipts = receipt_data.unwrap();
 
                 // We need to validate that the bloom filter contains the watch addresses as they might be false positives
-                let mut proofs = vec![];
                 let mut created_proof = false;
                 for (i, receipt) in receipts.iter().enumerate() {
                     let event_exist = watched_address.iter().any(|addr| {
@@ -131,13 +144,13 @@ impl BloomProcessor {
 
                         if let Ok(proof) = build_receipt_proof(block_hash, &block, &receipts, i) {
                             created_proof = true;
-                            proofs.push(proof);
+                            merkle_proofs.push(proof);
                         }
                     }
                 }
 
                 if !created_proof {
-                    log::warn!(target: TARGET, "false positive bloom filter for block {}", block_height);
+                    log::info!(target: TARGET, "false positive bloom filter for block {}", block_height);
                     if let Err(e) = self.db.mark_block_processed(block_height) {
                         log::warn!(target: TARGET, "Error while marking block {} as processed: {}", block_height, e);
                     }
