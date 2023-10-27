@@ -32,8 +32,8 @@ impl BloomProcessor {
         chain_id: u32,
     ) -> eyre::Result<Self> {
         let limit_processing_blocks_per_iteration = config
-        .bloom_processor_limit_per_block
-        .unwrap_or(crate::consts::DEFAULT_LIMIT_PROCESSING_BLOCKS_PER_ITERATION);
+            .bloom_processor_limit_per_block
+            .unwrap_or(crate::consts::DEFAULT_LIMIT_PROCESSING_BLOCKS_PER_ITERATION);
         let config = prepare_config(&config);
         let fetch_rpc =
             Provider::<Http>::try_from(config.execution_rpc.as_str()).map_err(|err| {
@@ -43,7 +43,7 @@ impl BloomProcessor {
                     err
                 )
             })?;
-       
+
         Ok(Self {
             db,
             fetch_rpc,
@@ -74,14 +74,15 @@ impl BloomProcessor {
                 .await
                 .unwrap_or(0);
 
-            let blocks_to_process = self
-                .db
-                .select_blocks_to_process(latest_finalized_block_on_chain, self.limit_processing_blocks_per_iteration);
+            let blocks_to_process = self.db.select_blocks_to_process(
+                latest_finalized_block_on_chain,
+                self.limit_processing_blocks_per_iteration,
+            );
             if blocks_to_process.is_err() {
                 log::warn!(target: TARGET, "Error while selecting blocks to process");
                 continue;
             }
-           
+
             let block_to_process = blocks_to_process.unwrap();
             if block_to_process.is_empty() {
                 log::info!(target: TARGET, "No blocks to process. Sleeping");
