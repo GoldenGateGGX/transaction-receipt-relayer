@@ -201,7 +201,7 @@ impl SubstrateClient {
 
         let result = self.api.storage().at_latest().await?.fetch(&query).await?;
         result
-            .map(|header| header.block_number)
+            .map(|header| header.block_number - 1) // -1 because it might not have all details on chain yet
             .ok_or_else(|| eyre::eyre!("No finalized header"))
     }
 
