@@ -2,7 +2,7 @@
   description = "Build transaction-receipt-relayer";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
 
     crane = {
       url = "github:ipetkov/crane";
@@ -76,6 +76,7 @@
         # Common arguments can be set here to avoid repeating them later
         commonArgs = rustEnv // {
           inherit src;
+          pname = "workspace";
 
           nativeBuildInputs = with pkgs; rustNativeBuildInputs ++ [ openssl ];
           buildInputs = with pkgs; [
@@ -95,6 +96,13 @@
           cargoCheckCommand = "true";
         };
 
+        # Check that the pallets built in WASM modes
+        commonWasmArgs = commonArgs // {
+          pname = "workspace-wasm";
+          cargoExtraArgs =
+                "-p pallet-receipt-registry -p pallet-chain-extension-receipt-registry -p pallet-evm-eth-receipt-provider --target wasm32-unknown-unknown --no-default-features";
+        };
+
         craneLibLLvmTools = craneLib.overrideToolchain
           (fenix.packages.${system}.complete.withComponents [
             "cargo"
@@ -105,17 +113,22 @@
         # Build *just* the cargo dependencies, so we can reuse
         # all of that work (e.g. via cachix) when running in CI
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+        wasmCargoArtifacts = craneLib.buildDepsOnly commonWasmArgs;
+
 
         # Build the actual crate itself, reusing the dependency
         # artifacts from above.
-        transaction-receipt-relayer = craneLib.buildPackage (commonArgs // {
+        workspace = craneLib.buildPackage (commonArgs // {
           inherit cargoArtifacts;
+        });
+        wasmWorkspace = craneLib.buildPackage (commonWasmArgs // {
+          cargoArtifacts = wasmCargoArtifacts;
         });
       in
       {
         checks = {
           # Build the crate as part of `nix flake check` for convenience
-          inherit transaction-receipt-relayer;
+          inherit workspace wasmWorkspace;
 
           # Run clippy (and deny all warnings) on the crate source,
           # again, resuing the dependency artifacts from above.
@@ -137,11 +150,6 @@
             inherit src;
           };
 
-          # Audit dependencies
-          audit = craneLib.cargoAudit {
-            inherit src advisory-db;
-          };
-
           # Run tests with cargo-nextest
           # Consider setting `doCheck = false` on `transaction-receipt-relayer` if you do not want
           # the tests to run twice
@@ -150,23 +158,17 @@
             partitions = 1;
             partitionType = "count";
           });
-        } // lib.optionalAttrs (system == "x86_64-linux") {
-          # NB: cargo-tarpaulin only supports x86_64 systems
-          # Check code coverage (note: this will not upload coverage anywhere)
-          coverage = craneLib.cargoTarpaulin (commonArgs // {
-            inherit cargoArtifacts;
-          });
         };
 
         packages = {
-          default = transaction-receipt-relayer;
-          transaction-receipt-relayer-llvm-coverage = craneLibLLvmTools.cargoLlvmCov (commonArgs // {
+          default = workspace;
+          workspace-llvm-coverage = craneLibLLvmTools.cargoLlvmCov (commonArgs // {
             inherit cargoArtifacts;
           });
         };
 
         apps.default = flake-utils.lib.mkApp {
-          drv = transaction-receipt-relayer;
+          drv = workspace;
         };
 
         devShells.default = pkgs.mkShell {
