@@ -46,5 +46,4 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-      - run: nix build --log-lines 100 .#checks.x86_64-linux.fmt
-      - run: nix build --log-lines 100 .#checks.x86_64-linux.clippy
+      - run: nix flake check --log-lines 100 --accept-flake-config
