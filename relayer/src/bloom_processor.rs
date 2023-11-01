@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use ethers::providers::{Http, Middleware, Provider};
 use futures::future::join_all;
-use types::{BlockHeaderWithTransaction, EventProof, TransactionReceipt, H160, H256};
+use types::{BlockHeaderWithTransaction, TransactionReceipt, H160, H256};
 
 use crate::common::*;
 use crate::config::Config;
@@ -17,6 +17,7 @@ pub struct BloomProcessor {
     substrate_client: SubstrateClient,
     term: Arc<AtomicBool>,
     chain_id: u32,
+    limit_processing_blocks_per_iteration: u64,
 
     // Cache of watched addresses
     watched_addresses: Option<Vec<H160>>,
@@ -30,6 +31,9 @@ impl BloomProcessor {
         substrate_client: SubstrateClient,
         chain_id: u32,
     ) -> eyre::Result<Self> {
+        let limit_processing_blocks_per_iteration = config
+            .bloom_processor_limit_per_block
+            .unwrap_or(crate::consts::DEFAULT_LIMIT_PROCESSING_BLOCKS_PER_ITERATION);
         let config = prepare_config(&config);
         let fetch_rpc =
             Provider::<Http>::try_from(config.execution_rpc.as_str()).map_err(|err| {
@@ -39,6 +43,7 @@ impl BloomProcessor {
                     err
                 )
             })?;
+
         Ok(Self {
             db,
             fetch_rpc,
@@ -46,17 +51,33 @@ impl BloomProcessor {
             substrate_client,
             chain_id,
             watched_addresses: None,
+            limit_processing_blocks_per_iteration,
         })
     }
 
     pub async fn run(&mut self) {
         const TARGET: &str = "relayer::bloom_processor::run";
         log::info!("bloom processor started");
+
+        // Let's allow light client to sync
+        let mut sleep = true;
         loop {
             exit_if_term(self.term.clone());
-            tokio::time::sleep(SLEEP_DURATION).await;
+            if sleep {
+                log::info!(target: TARGET, "Sleeping for {} secs", SLEEP_DURATION.as_secs());
+                tokio::time::sleep(SLEEP_DURATION).await;
+            }
 
-            let blocks_to_process = self.db.select_blocks_to_process();
+            let latest_finalized_block_on_chain = self
+                .substrate_client
+                .last_known_block_block_number(self.chain_id)
+                .await
+                .unwrap_or(0);
+
+            let blocks_to_process = self.db.select_blocks_to_process(
+                latest_finalized_block_on_chain,
+                self.limit_processing_blocks_per_iteration,
+            );
             if blocks_to_process.is_err() {
                 log::warn!(target: TARGET, "Error while selecting blocks to process");
                 continue;
@@ -65,8 +86,10 @@ impl BloomProcessor {
             let block_to_process = blocks_to_process.unwrap();
             if block_to_process.is_empty() {
                 log::info!(target: TARGET, "No blocks to process. Sleeping");
+                sleep = true;
                 continue;
             }
+            sleep = block_to_process.len() < self.limit_processing_blocks_per_iteration as usize;
 
             log::info!(target: TARGET, "Processing {} blocks", block_to_process.len());
             if let Ok(watched_addr) = self.substrate_client.watched_addresses(self.chain_id).await {
@@ -86,46 +109,54 @@ impl BloomProcessor {
             let receipts = join_all(receipts).await;
 
             log::info!(target: TARGET, "Fetched {} receipts", receipts.len());
+            let mut merkle_proofs = Vec::new();
 
-            let merkle_proofs: Vec<EventProof> = block_to_process
-                .into_iter()
-                .zip(receipts.into_iter())
-                .flat_map(|(block_data, receipt_data)| {
-                    let (block_height, block_hash, block) = block_data;
-                    if receipt_data.is_err() {
-                        log::warn!(target: TARGET, "Error while fetching receipts for block {}", block_height);
-                        return None;
-                    }
-                    let receipts = receipt_data.unwrap();
+            for (block_data, receipt_data) in block_to_process.into_iter().zip(receipts.into_iter())
+            {
+                let (block_height, block_hash, block) = block_data;
+                if receipt_data.is_err() {
+                    log::warn!(target: TARGET, "Error while fetching receipts for block {}", block_height);
+                    continue;
+                }
+                let receipts = receipt_data.unwrap();
 
-                    // We need to validate that the bloom filter contains the watch addresses as they might be false positives
-                    let mut proofs = vec![];
-                    for (i, receipt) in receipts.iter().enumerate() {
+                // We need to validate that the bloom filter contains the watch addresses as they might be false positives
+                let mut created_proof = false;
+                for (i, receipt) in receipts.iter().enumerate() {
+                    let event_exist = watched_address.iter().any(|addr| {
+                        log::trace!(target: TARGET, "bloom positive: {:?}, but addr is {}", receipt.bloom.check_address(addr), receipt.receipt.logs.iter().any(|l| l.address == *addr));
+                        receipt.bloom.check_address(addr)
+                            && receipt.receipt.logs.iter().any(|l| l.address == *addr)
+                    });
 
-                        if watched_address.iter().any(|addr| {
-                            log::trace!(target: TARGET, "bloom positive: {:?}, but addr is {}", receipt.bloom.check_address(addr), receipt.receipt.logs.iter().any(|l| l.address == *addr));
-                            receipt.bloom.check_address(addr)
-                                && receipt.receipt.logs.iter().any(|l| l.address == *addr)
-                        }) {
-                            log::trace!(target: TARGET, "Found event for address {:?} in block {}", watched_address, block_height);
-                            // Save index of positive receipt
-                            proofs
-                                .push(build_receipt_proof(block_hash, &block, &receipts, i).ok()?);
+                    if event_exist {
+                        log::trace!(target: TARGET, "Found event for address {:?} in block {}", watched_address, block_height);
+                        // Check maybe the event is already submitted
+                        let receipt_hash = H256::hash(receipt);
+                        if self
+                            .substrate_client
+                            .is_item_proved(self.chain_id, receipt_hash)
+                            .await
+                            .unwrap_or_default()
+                        {
+                            log::trace!(target: TARGET, "Event already submitted");
+                            continue;
+                        }
+
+                        if let Ok(proof) = build_receipt_proof(block_hash, &block, &receipts, i) {
+                            created_proof = true;
+                            merkle_proofs.push(proof);
                         }
                     }
+                }
 
-                    if proofs.is_empty() {
-                        log::warn!(target: TARGET, "false positive bloom filter for block {}", block_height);
-                        if let Err(e) = self.db.mark_block_processed(block_height) {
-                            log::warn!(target: TARGET, "Error while marking block {} as processed: {}", block_height, e);
-                        }
-                        return None;
+                if !created_proof {
+                    log::info!(target: TARGET, "false positive bloom filter for block {}", block_height);
+                    if let Err(e) = self.db.mark_block_processed(block_height) {
+                        log::warn!(target: TARGET, "Error while marking block {} as processed: {}", block_height, e);
                     }
-
-                    Some(proofs)
-                })
-                .flatten()
-                .collect();
+                }
+            }
 
             log::info!(target: TARGET, "Created {} event proofs", merkle_proofs.len());
 

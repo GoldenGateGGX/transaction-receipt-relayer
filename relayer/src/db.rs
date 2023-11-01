@@ -76,11 +76,15 @@ impl DB {
         Ok(())
     }
 
-    pub fn select_blocks_to_process(&self) -> Result<Vec<(u64, H256, BlockHeaderWithTransaction)>> {
+    pub fn select_blocks_to_process(
+        &self,
+        max_block: u64,
+        limit: u64,
+    ) -> Result<Vec<(u64, H256, BlockHeaderWithTransaction)>> {
         let conn = self.conn.lock().expect("acquire mutex");
         let mut stmt =
-            conn.prepare("SELECT block_height, block_hash, block_Header FROM blocks WHERE is_processed = 0 ORDER BY block_height")?;
-        let blocks_iter = stmt.query_map([], |row| {
+            conn.prepare("SELECT block_height, block_hash, block_Header FROM blocks WHERE is_processed = 0 AND block_height < ?1 ORDER BY block_height LIMIT ?2")?;
+        let blocks_iter = stmt.query_map((max_block, limit), |row| {
             let block_height = row.get::<_, u64>(0)?;
             let block_hash = row.get::<_, [u8; 32]>(1)?;
             let block_header = row.get::<_, String>(2)?;
@@ -294,14 +298,20 @@ mod tests {
             db.create_tables().unwrap();
             db.insert_block(block_number, block_hash, block_header.clone(), true)
                 .unwrap();
-            let blocks = db.select_blocks_to_process().unwrap();
+            let blocks = db.select_blocks_to_process(block_number + 1, 1).unwrap();
             assert_eq!(blocks.len(), 1);
             let (block_numb, hash, block) = blocks[0].clone();
             assert_eq!(block_numb, block_number);
             assert_eq!(hash, block_hash);
             assert_eq!(block, block_header);
+
+            // Check if specify less max block we receive nothing
+            let blocks = db.select_blocks_to_process(block_number - 1,1).unwrap();
+            assert_eq!(blocks.len(), 0);
+
+            // Check that block is not received after processing
             db.mark_block_processed(block_number).unwrap();
-            let blocks = db.select_blocks_to_process().unwrap();
+            let blocks = db.select_blocks_to_process(block_number + 1, 1).unwrap();
             assert_eq!(blocks.len(), 0);
             dir.close().unwrap();
         }

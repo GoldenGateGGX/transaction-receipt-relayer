@@ -84,7 +84,7 @@ impl Client {
         let mut latest_fetched_block = self.db.select_latest_fetched_block_height()?;
         loop {
             exit_if_term(self.term.clone());
-            tokio::time::sleep(Duration::from_secs(5)).await;
+            tokio::time::sleep(SLEEP_DURATION).await;
             let finalized_block = self
                 .client
                 .get_block_by_number(BlockTag::Finalized, false)
