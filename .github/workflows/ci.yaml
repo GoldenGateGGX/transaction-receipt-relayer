@@ -19,7 +19,7 @@ jobs:
   build-lint-all:
     if: github.event_name == 'pull_request'
     ## Run only if a PR is made for the main branch
-    runs-on: buildjet-32vcpu-ubuntu-2204
+    runs-on: ubuntu-22.04
     steps:
       - name: cachix-install-nix-action
         uses: cachix/install-nix-action@4b933aa7ebcc94a6174cf1364864e957b4910265
@@ -49,7 +49,7 @@ jobs:
   
   docker-build:
     # if: github.ref == 'refs/heads/main'
-    runs-on: buildjet-32vcpu-ubuntu-2204
+    runs-on: ubuntu-22.04
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
