@@ -48,7 +48,7 @@ jobs:
       - run: nix flake check --log-lines 100 --accept-flake-config
   
   docker-build:
-    # if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
     steps:
       - name: Configure AWS Credentials
