@@ -19,7 +19,7 @@ jobs:
   build-lint-all:
     if: github.event_name == 'pull_request'
     ## Run only if a PR is made for the main branch
-    # runs-on: buildjet-32vcpu-ubuntu-2204
+    runs-on: buildjet-32vcpu-ubuntu-2204
     runs-on: ubuntu-22.04
     steps:
       - name: cachix-install-nix-action
@@ -47,3 +47,43 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
       - run: nix flake check --log-lines 100 --accept-flake-config
+  
+  docker-build:
+    # if: github.ref == 'refs/heads/main'
+    runs-on: buildjet-32vcpu-ubuntu-2204
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+          ## This has to be either 'us-east-1' or 'us-west-2' for public ECR
+      - name: Log in to Amazon ECR
+        id: login-ecr-public
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          registry-type: public
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Set Image Tag
+        run: echo "SHORT_SHA=$(echo ${GITHUB_SHA} | cut -c1-8)" >> $GITHUB_ENV
+      - name: Build, tag, and upload the docker image
+        env:
+          REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
+          REGISTRY_ALIAS: c6u3u5c0
+          REPOSITORY: transaction-receipt-relayer
+        run: |
+          docker build -t $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:relayer-$SHORT_SHA -f Dockerfile .
+          docker push $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:relayer-$SHORT_SHA
+      - name: Store Image Tag on AWS S3
+        env:
+          S3_BUCKET: ggx-docker-image-tags
+        run: |
+          echo "Uploading Docker Image Tag to S3 Bucket as this workflow's artifact"
+          echo "$SHORT_SHA" > relayer_version
+          aws --region eu-central-1 s3 cp relayer_version s3://$S3_BUCKET/relayer_version
+          echo "This image will be used in the future deployments.."
+
+      - name: Log out of Amazon ECR
+        run: docker logout ${{ steps.login-ecr-public.outputs.registry }}

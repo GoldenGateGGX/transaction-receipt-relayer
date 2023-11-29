@@ -22,9 +22,9 @@ WORKDIR $HOME
 
 RUN apt-get update --yes && \
     apt-get install --yes --no-install-recommends \
-    libsqlite3-dev curl jq openssl ca-certificates
+    curl jq openssl ca-certificates libsqlite3-dev
 
-COPY --from=builder $HOME/target/release/transaction-receipt-relayer ./target/release/transaction-receipt-relayer
-COPY --from=builder $HOME/helios.toml $HOME/ggxchain-config.* $HOME/run_relayer.sh ./
+COPY --from=builder $HOME/target/release/eth-transaction-receipt-relayer ./target/release/eth-transaction-receipt-relayer
+COPY helios.toml ggxchain-config.* run_relayer.sh ./
 
 ENTRYPOINT [ "/usr/src/app/run_relayer.sh"]

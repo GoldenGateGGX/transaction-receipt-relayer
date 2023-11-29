@@ -1,3 +1,7 @@
 db
 result
 target
+Dockerfile
+**/*.md
+.direnv
+.github

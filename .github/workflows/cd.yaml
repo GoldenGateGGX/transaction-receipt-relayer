@@ -1,0 +1,75 @@
+permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+
+jobs:
+  argocd-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+
+      - name: Get Image Tag
+        id: image_full_ref
+        env:
+          S3_BUCKET: ggx-docker-image-tags
+          CHAIN: ${{ inputs.chain }}
+        run: |
+          aws s3 cp s3://$S3_BUCKET/relayer_version relayer_version
+          export TAG=$(cat relayer_version)
+          echo "TAG=$(cat relayer_version)" >> $GITHUB_ENV
+          echo "IMAGE=public.ecr.aws/c6u3u5c0/transaction-receipt-relayer:relayer-$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Token
+        id: generate_token
+        uses: getsentry/action-github-app-token@v2
+        with:
+          private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          app_id: ${{ secrets.GH_APP_ID }}
+
+      - name: Check out argocd code
+        uses: actions/checkout@v4
+        with:
+          repository: ggxchain/ggx-argocd-apps
+          ref: main
+          path: eksdeploy
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: Update Image Version of Brooklyn relayer
+        uses: fjogeleit/yaml-update-action@main
+        with:
+          valueFile: 'kustomization/overlays/brooklyn/relayer/sts.yaml'
+          propertyPath: 'spec.template.spec.containers[0].image'
+          value: ${{ steps.image_full_ref.outputs.IMAGE }}
+          commitChange: false
+          workDir: eksdeploy
+
+      # - name: Update Image Version of Sydney relayer
+      #   uses: fjogeleit/yaml-update-action@main
+      #   with:
+      #     valueFile: 'kustomization/overlays/sydney/relayer/sts.yaml'
+      #     propertyPath: 'spec.template.spec.containers[0].image'
+      #     value: ${{ steps.image_full_ref.outputs.IMAGE }}
+      #     commitChange: false
+      #     workDir: eksdeploy
+
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v5
+        with:
+          path: eksdeploy
+          token: ${{ steps.generate_token.outputs.token }}
+          title: "Update ggxchain-relayer version to ${{ env.TAG }}"
+          branch: ggxchain-relayer-${{ env.TAG}}
+          delete-branch: true
+          commit-message: "auto deploy ggxchain-relayer-${{ env.TAG }}"
+
+      - name: Check outputs
+        if: ${{ steps.cpr.outputs.pull-request-number }}
+        run: |
+          echo "Accept Pull Request to deploy this version - ${{ steps.cpr.outputs.pull-request-url }}" >> $GITHUB_STEP_SUMMARY
