@@ -1,0 +1,5 @@
+# is_dev will instantiate with Alice as the default keypair
+is_dev = false
+ws_url = "wss://brooklyn-archive.dev.ggxchain.io:9944"
+# Replace with your own mnemonic
+phrase = ""
