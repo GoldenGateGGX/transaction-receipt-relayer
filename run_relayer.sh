@@ -25,8 +25,10 @@ else
 fi
 
 # Put secret mnemonic from the environment variable into the secret config file
+echo "Putting secret mnemonic from the environment variable into the secret config file"
 sed -i "s|phrase.*=.*|phrase=\"$MNEMONIC\"|" "$SECRET_CONFIG"
 # Replace infura key in the helios config file
+echo "Replacing infura key in $HELIOS_CONFIG"
 sed -i "s|{INFURA_KEY}|$INFURA_KEY|" "$HELIOS_CONFIG"
 
 # Execute the provided executable with remaining arguments

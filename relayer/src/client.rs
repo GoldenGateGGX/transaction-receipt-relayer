@@ -3,12 +3,12 @@ use std::{
     time::Duration,
 };
 
-use ethers::providers::Middleware;
 use ethers::providers::{Http, Provider};
+use ethers::{providers::Middleware, types::U64};
 use eyre::Result;
 use helios::{
     client::{Client as HeliosClient, ClientBuilder, FileDB},
-    types::{BlockTag, ExecutionBlock},
+    types::{Block, BlockTag},
 };
 use types::{BlockHeaderWithTransaction, H160, H256};
 
@@ -96,7 +96,7 @@ impl Client {
                 continue;
             };
 
-            if Some(finalized_block.number) == latest_fetched_block {
+            if Some(finalized_block.number.as_u64()) == latest_fetched_block {
                 log::info!(target: TARGET,"No new finalized blocks, retrying in {} seconds", SLEEP_DURATION.as_secs());
                 continue;
             }
@@ -135,21 +135,21 @@ impl Client {
     /// to the latest processed block using parent hash.
     async fn collect_blocks_after_finality_update(
         &mut self,
-        finalized_block: ExecutionBlock,
+        finalized_block: Block,
         latest_fetched_block: Option<u64>,
     ) -> Result<()> {
         const TARGET: &str = "relayer::client::collect_blocks_after_finality_update";
 
         log::info!(target: TARGET,"Processing finality update");
         let latest_fetched_block =
-            latest_fetched_block.unwrap_or(finalized_block.number - self.blocks_to_store);
+            latest_fetched_block.unwrap_or(finalized_block.number.as_u64() - self.blocks_to_store);
 
         log::info!(target: TARGET,"Latest fetched block: {}", latest_fetched_block);
 
         // Now we have fetch missing blocks using previous block hash until we hit latest processed block.
         // If it's first run, we have to backtrack for self.block_to_fetch blocks.
         let mut blocks_to_process =
-            Vec::with_capacity((finalized_block.number - latest_fetched_block) as usize);
+            Vec::with_capacity((finalized_block.number.as_u64() - latest_fetched_block) as usize);
 
         let mut current_block = finalized_block.number - 1;
         let mut prev_block_hash = finalized_block.parent_hash;
@@ -163,7 +163,7 @@ impl Client {
 
         let mut repeat = 0;
 
-        while current_block != latest_fetched_block {
+        while current_block.as_u64() != latest_fetched_block {
             // Fetch block by parent hash using web3 interface
             let execution_block = self.block_rpc.get_block(prev_block_hash).await;
             let execution_block = if let Ok(Some(execution_block)) = execution_block {
@@ -178,7 +178,7 @@ impl Client {
             if let Ok(parsed_block) = convert_ethers_block(execution_block) {
                 // store requested hash to verify later
                 blocks_to_process.push((parsed_block, H256(prev_block_hash.0)));
-                current_block -= 1;
+                current_block = current_block.saturating_sub(U64::one());
                 prev_block_hash = tmp;
                 // reset repeat as we had a success.
                 repeat = 0;
