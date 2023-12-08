@@ -64,6 +64,7 @@ fn network_name_to_id(network_name: &str) -> Result<u32> {
     match network_name {
         "mainnet" => Ok(1),
         "goerli" => Ok(5),
+        "sepolia" => Ok(11155111),
         _ => Err(eyre::eyre!("Unknown network name {}", network_name)),
     }
 }

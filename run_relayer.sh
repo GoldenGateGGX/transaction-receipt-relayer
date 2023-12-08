@@ -6,7 +6,7 @@ if [ "$#" -lt 3 ]; then
 fi
 
 # The URL to query for checkpoint
-URL="https://sync-goerli.beaconcha.in/checkpointz/v1/status"
+URL="https://beaconstate-sepolia.chainsafe.io/checkpointz/v1/status"
 
 HELIOS_CONFIG="$1"
 SECRET_CONFIG="$2"
