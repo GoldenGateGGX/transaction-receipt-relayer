@@ -4,7 +4,7 @@ members = [
     "relayer",
     "types",
     "pallet",
-    "merkle",
+    "Merkle",
     "precompile",
     "chain-extension",
 ]
@@ -69,11 +69,11 @@ fp-evm = { version = "3.0.0-dev", git = "https://github.com/AstarNetwork/frontie
 precompile-utils = { version = "0.5", git = "https://github.com/AstarNetwork/Astar", rev = "df73ca435bbfa30548bb2446b5dbb58492c928bb", default-features = false }
 
 # webb-tools
-eth-types = { git = "https://github.com/ggxchain/pallet-eth2-light-client.git", branch = "sepolia", default-features = false, features = [
+eth-types = { git = "https://github.com/ggxchain/pallet-eth2-light-client.git", branch = "polkadot-v0.9.43", default-features = false, features = [
     "eth2",
 ] }
-consensus = { package = "webb-consensus-types", git = "https://github.com/ggxchain/pallet-eth2-light-client.git", branch = "sepolia", default-features = false }
-pallet-eth2-light-client = { git = "https://github.com/ggxchain/pallet-eth2-light-client.git", branch = "sepolia", default-features = false }
+consensus = { package = "webb-consensus-types", git = "https://github.com/ggxchain/pallet-eth2-light-client.git", branch = "polkadot-v0.9.43", default-features = false }
+pallet-eth2-light-client = { git = "https://github.com/ggxchain/pallet-eth2-light-client.git", branch = "polkadot-v0.9.43", default-features = false }
 webb-proposals = { git = "https://github.com/ggxchain/webb-rs.git", branch = "polkadot-v0.9.43", default-features = false }
 
 
