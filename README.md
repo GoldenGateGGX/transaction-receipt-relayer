@@ -28,3 +28,8 @@ RUST_LOG=info cargo run --release -- --network sepolia --database db --helios-co
 * [Helios config](https://github.com/a16z/helios/blob/master/config.md)
 
 Please note that you need to update helios.toml checkpoint from time to time.
+
+### Action points to look
+
+* Check how it works if multiple relayers are working simultaneously.
+* Optimize batch sending of receipts.
