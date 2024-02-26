@@ -75,9 +75,9 @@ pub fn convert_ethers_block(
         difficulty: U256(execution_block.difficulty.into()),
         nonce: execution_block.nonce.ok_or_else(err)?.to_low_u64_be(),
 
-        // TODO: add conversion once ExecutionPayload has 4844 fields
-        blob_gas_used: None,
-        excess_blob_gas: None,
+        blob_gas_used: execution_block.blob_gas_used.map(|a| a.as_u64()),
+        excess_blob_gas: execution_block.excess_blob_gas.map(|a| a.as_u64()),
+        parent_beacon_block_root: execution_block.parent_beacon_block_root.map(|a| H256(a.0)),
     };
 
     Ok(BlockHeaderWithTransaction {

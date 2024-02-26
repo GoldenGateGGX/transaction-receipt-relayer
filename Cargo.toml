@@ -28,7 +28,7 @@ clap = { version = "4.3", features = ["derive"] }
 env_logger = "0.10.0"
 ethers = "2.0.7"
 eyre = "0.6.8"
-helios = { git = "https://github.com/a16z/helios.git", rev = "b0ddc2ccb3d1fd41d6e39ce624826c52ac098222" }
+helios = { git = "https://github.com/a16z/helios.git", rev = "ba336439" }
 hex = "0.4"
 hex-literal = "0.4.1"
 keccak-hash = { version = "0.10.0", default-features = false }

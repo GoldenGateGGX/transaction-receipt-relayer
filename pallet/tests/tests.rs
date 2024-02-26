@@ -89,9 +89,9 @@ fn block_header_convert(header: eth_types::BlockHeader) -> types::BlockHeader {
         ),
         nonce: header.nonce.0.to_low_u64_be(),
 
-        // TODO: add conversion once ExecutionPayload has 4844 fields
         blob_gas_used: None,
         excess_blob_gas: None,
+        parent_beacon_block_root: None,
     };
     assert_eq!(hash, H256::hash(&block_header).0);
 
@@ -132,6 +132,7 @@ pub fn test_submit_proof_header_hash_do_not_exist() {
                 blob_gas_used: None,
                 excess_blob_gas: None,
                 extra_data: vec![0],
+                parent_beacon_block_root: None,
             },
             block_hash: types::H256::zero(),
             transaction_receipt: types::TransactionReceipt {
@@ -188,6 +189,7 @@ pub fn test_submit_proof_block_hash_do_not_match() {
                 blob_gas_used: None,
                 excess_blob_gas: None,
                 extra_data: vec![0],
+                parent_beacon_block_root: None,
             },
             block_hash: types::H256::zero(),
             transaction_receipt: types::TransactionReceipt {
@@ -246,6 +248,7 @@ pub fn test_submit_proof_processed_receipts_hash_do_not_contains_key_verify_proo
                 blob_gas_used: None,
                 excess_blob_gas: None,
                 extra_data: vec![0],
+                parent_beacon_block_root: None,
             },
             block_hash: types::H256(headers[0][0].calculate_hash().0 .0),
             transaction_receipt: types::TransactionReceipt {

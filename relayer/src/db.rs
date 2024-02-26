@@ -176,6 +176,7 @@ mod tests {
                 base_fee_per_gas,
                 blob_gas_used,
                 excess_blob_gas,
+                parent_beacon_block_root,
                 extra_data,
             ),
         ): (
@@ -200,6 +201,7 @@ mod tests {
                 Option<u64>,
                 Option<u64>,
                 Option<u64>,
+                Option<H256>,
                 Vec<u8>,
             ),
         ),
@@ -223,6 +225,7 @@ mod tests {
             base_fee_per_gas,
             blob_gas_used,
             excess_blob_gas,
+            parent_beacon_block_root,
             extra_data,
         }
     }
@@ -251,6 +254,7 @@ mod tests {
                 any::<Option<u64>>(),
                 any::<Option<u64>>(),
                 any::<Option<u64>>(),
+                h256_option_strat(),
                 any::<Vec<u8>>(),
             ),
         )

@@ -73,6 +73,14 @@ pub struct BlockHeader {
     pub excess_blob_gas: Option<u64>,
     /// An arbitrary byte array containing data relevant to this block. This must be 32 bytes or
     /// fewer; formally Hx.
+    /// The hash of the parent beacon block's root is included in execution blocks, as proposed by
+    /// EIP-4788.
+    ///
+    /// This enables trust-minimized access to consensus state, supporting staking pools, bridges,
+    /// and more.
+    ///
+    /// The beacon roots contract handles root storage, enhancing Ethereum's functionalities.
+    pub parent_beacon_block_root: Option<H256>,
     pub extra_data: Vec<u8>,
 }
 
@@ -107,31 +115,41 @@ impl BlockHeader {
         } else if self.withdrawals_root.is_some()
             || self.blob_gas_used.is_some()
             || self.excess_blob_gas.is_some()
+            || self.parent_beacon_block_root.is_some()
         {
             length += 1; // EMPTY STRING CODE
         }
 
         if let Some(root) = &self.withdrawals_root {
             length += root.length();
-        } else if self.blob_gas_used.is_some() || self.excess_blob_gas.is_some() {
+        } else if self.blob_gas_used.is_some()
+            || self.excess_blob_gas.is_some()
+            || self.parent_beacon_block_root.is_some()
+        {
             length += 1; // EMPTY STRING CODE
         }
 
         if let Some(blob_gas_used) = self.blob_gas_used {
             length += U256::from(blob_gas_used).length();
-        } else if self.excess_blob_gas.is_some() {
+        } else if self.excess_blob_gas.is_some() || self.parent_beacon_block_root.is_some() {
             length += 1; // EMPTY STRING CODE
         }
 
-        // Encode excess blob gas length. If new fields are added, the above pattern will need to
-        // be repeated and placeholder length added. Otherwise, it's impossible to tell _which_
-        // fields are missing. This is mainly relevant for contrived cases where a header is
-        // created at random, for example:
+        if let Some(excess_blob_gas) = self.excess_blob_gas {
+            length += U256::from(excess_blob_gas).length();
+        } else if self.parent_beacon_block_root.is_some() {
+            length += 1; // EMPTY STRING CODE
+        }
+
+        // Encode parent beacon block root length. If new fields are added, the above pattern will
+        // need to be repeated and placeholder length added. Otherwise, it's impossible to
+        // tell _which_ fields are missing. This is mainly relevant for contrived cases
+        // where a header is created at random, for example:
         //  * A header is created with a withdrawals root, but no base fee. Shanghai blocks are
         //    post-London, so this is technically not valid. However, a tool like proptest would
         //    generate a block like this.
-        if let Some(excess_blob_gas) = self.excess_blob_gas {
-            length += U256::from(excess_blob_gas).length();
+        if let Some(parent_beacon_block_root) = self.parent_beacon_block_root {
+            length += parent_beacon_block_root.length();
         }
 
         length
@@ -171,6 +189,7 @@ impl Encodable for BlockHeader {
         } else if self.withdrawals_root.is_some()
             || self.blob_gas_used.is_some()
             || self.excess_blob_gas.is_some()
+            || self.parent_beacon_block_root.is_some()
         {
             encode!(out, EMPTY_STRING_CODE);
         }
@@ -179,7 +198,10 @@ impl Encodable for BlockHeader {
         // but blob gas used is present.
         if let Some(ref root) = self.withdrawals_root {
             encode!(out, root);
-        } else if self.blob_gas_used.is_some() || self.excess_blob_gas.is_some() {
+        } else if self.blob_gas_used.is_some()
+            || self.excess_blob_gas.is_some()
+            || self.parent_beacon_block_root.is_some()
+        {
             encode!(out, EMPTY_STRING_CODE);
         }
 
@@ -187,19 +209,25 @@ impl Encodable for BlockHeader {
         // but excess blob gas is present.
         if let Some(ref blob_gas_used) = self.blob_gas_used {
             encode!(out, U256::from(*blob_gas_used));
-        } else if self.excess_blob_gas.is_some() {
+        } else if self.excess_blob_gas.is_some() || self.parent_beacon_block_root.is_some() {
             encode!(out, EMPTY_LIST_CODE);
         }
 
-        // Encode excess blob gas. If new fields are added, the above pattern will need to be
-        // repeated and placeholders added. Otherwise, it's impossible to tell _which_ fields
-        // are missing. This is mainly relevant for contrived cases where a header is created
-        // at random, for example:
+        if let Some(ref excess_blob_gas) = self.excess_blob_gas {
+            encode!(out, U256::from(*excess_blob_gas));
+        } else if self.parent_beacon_block_root.is_some() {
+            encode!(out, EMPTY_LIST_CODE);
+        }
+
+        // Encode parent beacon block root. If new fields are added, the above pattern will need to
+        // be repeated and placeholders added. Otherwise, it's impossible to tell _which_
+        // fields are missing. This is mainly relevant for contrived cases where a header is
+        // created at random, for example:
         //  * A header is created with a withdrawals root, but no base fee. Shanghai blocks are
         //    post-London, so this is technically not valid. However, a tool like proptest would
         //    generate a block like this.
-        if let Some(ref excess_blob_gas) = self.excess_blob_gas {
-            encode!(out, U256::from(*excess_blob_gas));
+        if let Some(ref parent_beacon_block_root) = self.parent_beacon_block_root {
+            encode!(out, parent_beacon_block_root);
         }
     }
 
@@ -242,6 +270,7 @@ mod tests {
             withdrawals_root: None,
             blob_gas_used: None,
             excess_blob_gas: None,
+            parent_beacon_block_root: None,
         };
         assert_eq!(H256::hash(header), expected_hash);
     }
@@ -274,7 +303,43 @@ mod tests {
             withdrawals_root: Some(H256(hex!("5d908bbdb4303d3be4ec0565005a0bc4ca3ad820143fba16351f1d7fb4dfbfe9"))),
             blob_gas_used: None,
             excess_blob_gas: None,
+            parent_beacon_block_root: None,
         };
+        assert_eq!(H256::hash(header), expected_hash);
+    }
+
+    // curl https://sepolia.infura.io/v3/{YOUR_API_KEY}   -X POST   -H "Content-Type: application/json"
+    //      -d '{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["0x51e401",false],"id":1}
+
+    #[test]
+    fn test_block_0x51e401() {
+        let expected_hash = H256(hex!(
+            "c84ff95f7d4c3bb978884f6e636db8bc5f541ade6c206a8776b85d4182a24e12"
+        ));
+
+        let header = BlockHeader {
+            base_fee_per_gas: Some(0x1268e9cb51),
+            blob_gas_used: Some(0x0),
+            difficulty: U256::from(0x0),
+            excess_blob_gas: Some(0x4b60000),
+            extra_data: vec![],
+            gas_limit: 0x1c9c380,
+            gas_used: 0x1297b87,
+            logs_bloom: Bloom::new(hex!("8a81f425c0804390a81b404311d0055081eb20c220b200602290032a14c84052c2c06022c401422598552864002444834904000200a28b0445205091007088003022c01a008520015084409a0420098194043a441d920008204f8140440064020663080c42e342508080402504012fb7c00805c60b100024400a821881898408b20ca09c04e0400064a1510068a03cb21932a460028040021651388054c038404e4f860a68a42402144800030118e20d8a23408904049804ac90cea386501172009810df0a100255a88004910902802180da11047052070d24829208e19563093071600d0022120084c85c30a38420160a0c28304e988252f6020e0409011645")),
+            beneficiary: H160(hex!("008b3b2f992c0e14edaa6e2c662bec549caa8df1")),
+            mix_hash: H256(hex!("bdf2159f17d75bcbf4c1740b312532dabff7a53a9f24534bc7cc1bab40ae9829")),
+            nonce: 0x0,
+            number: 0x51e401,
+            parent_hash: H256(hex!("5e43ebe6263f943d38c7d93b15487b67c56d8e60e4800fa700687302a550d459")),
+            receipts_root: H256(hex!("f01845fe1872276ed1ac1443fa2971d6f7fd1cf1b109504e979b34a8fb8ee533")),
+            ommers_hash: H256(hex!("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
+            state_root: H256(hex!("929a63a1928000ee6471682532420018724e10f12abf696fc5f8c8d91f968ce1")),
+            timestamp: 0x65dc76e0,
+            transactions_root: H256(hex!("e375acca9e8be92e97fcc2d180e27f62c18c475cf8921f5421ecab1e95c6f53e")),
+            withdrawals_root: Some(H256(hex!("1c6e0aa70c8c09b629a7aa4744b08abb0d2d243f621ba085de089069a9b51f41"))),
+            parent_beacon_block_root: Some(H256(hex!("b805a8111c7ced05e5e826d4640d8ccaaeec55b93152edeb7b5c4bfad4d80a5d"))),
+        };
+
         assert_eq!(H256::hash(header), expected_hash);
     }
 }
