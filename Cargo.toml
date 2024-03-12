@@ -80,3 +80,9 @@ webb-proposals = { git = "https://github.com/ggxchain/webb-rs.git", branch = "po
 types = { path = "types", default-features = false }
 merkle-generator = { path = "merkle" }
 pallet-receipt-registry = { path = "pallet", default-features = false }
+
+# There is a build script that loads data from the txt file and generates rust code.
+# The build script is not needed as the data is already generated and checked in, but it breaks nix builds.
+# So, I have disabled the build script for now.
+[patch."https://github.com/bluealloy/revm.git"]
+revm-primitives = { git = "https://github.com/ggxchain/revm", branch = "fix" }
