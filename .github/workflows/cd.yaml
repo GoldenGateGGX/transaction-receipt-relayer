@@ -23,7 +23,7 @@ jobs:
           aws s3 cp s3://$S3_BUCKET/relayer_version relayer_version
           export TAG=$(cat relayer_version)
           echo "TAG=$(cat relayer_version)" >> $GITHUB_ENV
-          echo "IMAGE=public.ecr.aws/c6u3u5c0/transaction-receipt-relayer:relayer-$TAG" >> "$GITHUB_OUTPUT"
+          echo "IMAGE=public.ecr.aws/k7w7q6c4/transaction-receipt-relayer:relayer-$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Generate Token
         id: generate_token
