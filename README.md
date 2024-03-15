@@ -33,3 +33,4 @@ Please note that you need to update helios.toml checkpoint from time to time.
 
 * Check how it works if multiple relayers are working simultaneously.
 * Optimize batch sending of receipts.
+* Remove blocks older than X

@@ -28,6 +28,7 @@ pub struct Client {
     term: Arc<AtomicBool>,
     substrate_client: SubstrateClient,
     chain_id: u32,
+    // TODO: rotate blocks in the database
     blocks_to_store: u64,
 
     // Cache of watched addresses
