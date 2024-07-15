@@ -20,11 +20,12 @@ RUST_LOG=info cargo run --release -- --network sepolia --database db --helios-co
 ### Configs
 
 * GGX config
-|| Field || Definition ||
-|---|---|
-|is_dev| if set to true the Alice account will be used, and the phrase will be ignored|
-|ws_url| GGX RPC endpoint|
-|phrase| Account for signing transaction.|
+  | Field | Definition |
+  |---|---|
+  |is_dev| if set to true the Alice account will be used, and the phrase will be ignored|
+  |ws_url| GGX RPC endpoint|
+  |phrase| Account for signing transaction.|
+
 * [Helios config](https://github.com/a16z/helios/blob/master/config.md)
 
 Please note that you need to update helios.toml checkpoint from time to time.
