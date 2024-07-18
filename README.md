@@ -44,12 +44,11 @@ You can see an Ethereum client event in the [explorer](https://polkadot.js.org/a
 ## Configs
 
 * GGX config
-
-| Field | Definition |
-|---|---|
-|is_dev| if set to true the Alice account will be used, and the phrase will be ignored|
-|ws_url| GGX RPC endpoint|
-|phrase| Account for signing transaction.|
+  | Field | Definition |
+  |---|---|
+  |is_dev| if set to true the Alice account will be used, and the phrase will be ignored|
+  |ws_url| GGX RPC endpoint|
+  |phrase| Account for signing transaction.|
 
 * [Helios config](https://github.com/a16z/helios/blob/master/config.md)
 
