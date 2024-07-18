@@ -10,5 +10,8 @@ consensus_rpc = "http://unstable.sepolia.beacon-api.nimbus.team"
 execution_rpc = "https://sepolia.infura.io/v3/{INFURA_KEY}"
 load_external_fallback = true
 data_dir = "./data/sepolia"
-checkpoint = "0xc6203ac1c054548242b7710b1ef67f1b912e52cd34afe133865f07ce1218811a"
 fallback = "https://beaconstate-sepolia.chainsafe.io/"
+
+# We need to rotate it pretty often -> https://beaconstate-sepolia.chainsafe.io/
+checkpoint = "0xc6203ac1c054548242b7710b1ef67f1b912e52cd34afe133865f07ce1218811a"
+
