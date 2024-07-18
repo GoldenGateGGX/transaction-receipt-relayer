@@ -16,15 +16,29 @@ sudo apt install libsqlite3-dev
 1. Run 2 [nodes](https://github.com/ggxchain/ggxnode)
 
 ```bash
-ETH1_INFURA_API_KEY=$(INFURA_API_KEY) ./target/release/ggxchain-node --alice --chain=dev --port=30333 --rpc-port=9944 --base-path=/tmp/alice \
-    --rpc-cors=all --node-key=0000000000000000000000000000000000000000000000000000000000000001 \
+export ETH1_INFURA_API_KEY=$(INFURA_API_KEY)
+
+./target/release/ggxchain-node \
+    --alice \
+    --chain=dev \
+    --port=30333 \
+    --rpc-port=9944 \
+    --base-path=/tmp/alice \
+    --rpc-cors=all \
+    --node-key=0000000000000000000000000000000000000000000000000000000000000001 \
     --light-client-relay-config-path eth-relay.toml \
     --light-client-init-pallet-config-path eth-init.toml
 ```
 
 ```bash
-./target/release/ggxchain-node --bob --chain=dev --port=30334 --rpc-port=9945 --base-path=/tmp/bob \
-    --rpc-cors=all --bootnodes=/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
+./target/release/ggxchain-node \
+    --bob \
+    --chain=dev \
+    --port=30334 \
+    --rpc-port=9945 \
+    --base-path=/tmp/bob \
+    --rpc-cors=all \
+    --bootnodes=/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
 ```
 
 2. Update `INFURA_API_KEY` and `checkpoint` in helios.toml
