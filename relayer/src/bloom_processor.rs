@@ -18,6 +18,7 @@ pub struct BloomProcessor {
     term: Arc<AtomicBool>,
     chain_id: u32,
     limit_processing_blocks_per_iteration: u64,
+    interval_between_get_of_receipts: Option<u64>,
 
     // Cache of watched addresses
     watched_addresses: Option<Vec<H160>>,
@@ -34,6 +35,7 @@ impl BloomProcessor {
         let limit_processing_blocks_per_iteration = config
             .bloom_processor_limit_per_block
             .unwrap_or(crate::consts::DEFAULT_LIMIT_PROCESSING_BLOCKS_PER_ITERATION);
+        let interval_between_get_of_receipts = config.interval_between_get_of_receipts;
         let config = prepare_config(&config);
         let fetch_rpc =
             Provider::<Http>::try_from(config.execution_rpc.as_str()).map_err(|err| {
@@ -52,6 +54,7 @@ impl BloomProcessor {
             chain_id,
             watched_addresses: None,
             limit_processing_blocks_per_iteration,
+            interval_between_get_of_receipts,
         })
     }
 
@@ -78,12 +81,14 @@ impl BloomProcessor {
                 latest_finalized_block_on_chain,
                 self.limit_processing_blocks_per_iteration,
             );
-            if blocks_to_process.is_err() {
-                log::warn!(target: TARGET, "Error while selecting blocks to process");
-                continue;
-            }
 
-            let block_to_process = blocks_to_process.unwrap();
+            let block_to_process = match blocks_to_process {
+                Ok(block) => block,
+                Err(err) => {
+                    log::warn!(target: TARGET, "Error while selecting blocks to process, reason: {:?}", err);
+                    continue;
+                }
+            };
             if block_to_process.is_empty() {
                 log::info!(target: TARGET, "No blocks to process. Sleeping");
                 sleep = true;
@@ -103,9 +108,9 @@ impl BloomProcessor {
                 continue;
             };
 
-            let receipts = block_to_process
-                .iter()
-                .map(|(_, _, block)| self.fetch_receipts(block));
+            let receipts = block_to_process.iter().map(|(_, _, block)| {
+                self.fetch_receipts(block, self.interval_between_get_of_receipts)
+            });
             let receipts = join_all(receipts).await;
 
             log::info!(target: TARGET, "Fetched {} receipts", receipts.len());
@@ -185,6 +190,7 @@ impl BloomProcessor {
     async fn fetch_receipts(
         &self,
         block: &BlockHeaderWithTransaction,
+        interval_between_get_of_receipts: Option<u64>,
     ) -> eyre::Result<Vec<TransactionReceipt>> {
         const TARGET: &str = "relayer::bloom_processor::fetch_receipts";
 
@@ -193,7 +199,19 @@ impl BloomProcessor {
             let tx_hash = ethers::types::H256(tx.0);
             self.fetch_rpc.get_transaction_receipt(tx_hash)
         });
-        let transactions = join_all(transaction_fut).await;
+        let transactions = {
+            match interval_between_get_of_receipts {
+                None => join_all(transaction_fut).await,
+                Some(interval) => {
+                    let mut buffer = Vec::with_capacity(transaction_fut.len());
+                    for fut in transaction_fut {
+                        let _ = tokio::time::sleep(std::time::Duration::from_secs(interval)).await;
+                        buffer.push(fut.await)
+                    }
+                    buffer
+                }
+            }
+        };
 
         for transaction in transactions {
             match transaction {
