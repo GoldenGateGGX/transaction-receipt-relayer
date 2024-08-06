@@ -49,7 +49,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
-      - name: Remove old nix definition
+      - name: Remove old nix definitions
         run: |
           nix‐collect‐garbage ‐‐delete‐old
       - run: nix flake check --log-lines 100 --accept-flake-config
