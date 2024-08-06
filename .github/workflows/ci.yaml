@@ -21,6 +21,10 @@ jobs:
     ## Run only if a PR is made for the main branch
     runs-on: ubuntu-22.04
     steps:
+      - name: Check free space
+        run: |
+          echo "Free space:"
+          df -h
       - name: cachix-install-nix-action
         uses: cachix/install-nix-action@4b933aa7ebcc94a6174cf1364864e957b4910265
         with:
