@@ -50,7 +50,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
       - name: Remove old nix definitions
-        run: nix-collect-garbage ‐‐help
+        run: nix-collect-garbage --help
       - run: nix flake check --log-lines 100 --accept-flake-config
   
   docker-build:
